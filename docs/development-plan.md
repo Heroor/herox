@@ -16,7 +16,7 @@
 - MCP：`@modelcontextprotocol/sdk`。
 - Tests：Vitest。
 - Lint/format：ESLint + Prettier。
-- Packaging：tsup 输出纯 ESM CLI，首发不做原生二进制。
+- Packaging：tsdown 输出纯 ESM CLI，首发不做原生二进制。
 - Release：Changesets + npm provenance。
 - Future runtime：后期评估 Bun 构建和单文件二进制发布，但不进入 MVP。
 
@@ -84,7 +84,7 @@ M9  v1.0 hardening
 - 初始化 workspace 根 `package.json`。
 - 创建 `packages/cli/package.json`，包名为 `@heroor/x`。
 - 配置 `pnpm-workspace.yaml`。
-- 添加 TypeScript、Vitest、ESLint、Prettier、tsup。
+- 添加 TypeScript、Vitest、ESLint、Prettier、tsdown。
 - 创建 MVP 五包结构：`cli`、`core`、`providers`、`tools`、`shared`。
 - 实现 `herox --version` 和 `herox --help`。
 - 添加基础 CI 脚本：`pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm build`。

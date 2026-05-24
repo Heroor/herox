@@ -10,7 +10,10 @@
     }
   },
   "sideEffects": false,
+  "tsdown": {
+    "fixedExtension": false
+  },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --target node20 --dts --clean"
+    "build": "tsdown src/index.ts --format esm --target node20 --platform node --dts --clean"
   }
 }
