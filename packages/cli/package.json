@@ -1,0 +1,33 @@
+{
+  "name": "@heroor/x",
+  "version": "0.1.0",
+  "description": "Herox Agent CLI for OpenAI-compatible AI models and local developer workflows.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "herox": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "!dist/*.tsbuildinfo",
+    "!dist/**/*.tsbuildinfo",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --target node20 --clean",
+    "pack:dry": "pnpm pack --dry-run",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@heroor/x-core": "workspace:*",
+    "@heroor/x-shared": "workspace:*"
+  }
+}

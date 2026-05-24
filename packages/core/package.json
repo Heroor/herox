@@ -1,0 +1,21 @@
+{
+  "name": "@heroor/x-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --target node20 --dts --clean"
+  },
+  "dependencies": {
+    "@heroor/x-providers": "workspace:*",
+    "@heroor/x-shared": "workspace:*",
+    "@heroor/x-tools": "workspace:*"
+  }
+}

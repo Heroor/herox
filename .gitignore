@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+.pnpm-store/
+
+.DS_Store
+*.log
+
+.env
+.env.*
+!.env.example
+
+.herox/settings.local.json
+.herox/HEROX.local.md
+.herox/sessions/
