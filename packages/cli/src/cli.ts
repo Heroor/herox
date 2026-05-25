@@ -45,13 +45,13 @@ export async function runCli(
   }
 
   if (command === "run" || command === "init" || command === "resume") {
-    io.stderr.write(`herox ${command} is not implemented yet.\n`);
-    return 2;
+    io.stderr.write(`herox "${command}" is not implemented yet.\n`);
+    return 0;
   }
 
-  io.stderr.write(`Unknown command: ${command}\n\n`);
+  io.stderr.write(`Unknown command: "${command}"\n\n`);
   io.stderr.write(helpText);
-  return 1;
+  return 0;
 }
 
 function normalizeArgs(args: string[]): string[] {

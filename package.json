@@ -5,6 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@11.2.2",
   "scripts": {
+    "dev": "tsx ./packages/cli/src/index.ts",
     "build": "pnpm -r --sort run build",
     "changeset": "changeset",
     "format": "prettier --check .",
