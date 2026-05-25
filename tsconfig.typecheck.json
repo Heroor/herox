@@ -6,10 +6,10 @@
     "declarationMap": false,
     "noEmit": true,
     "paths": {
-      "@heroor/x-core": ["packages/core/src/index.ts"],
-      "@heroor/x-providers": ["packages/providers/src/index.ts"],
-      "@heroor/x-shared": ["packages/shared/src/index.ts"],
-      "@heroor/x-tools": ["packages/tools/src/index.ts"]
+      "@heroor/x-core": ["./packages/core/src/index.ts"],
+      "@heroor/x-providers": ["./packages/providers/src/index.ts"],
+      "@heroor/x-shared": ["./packages/shared/src/index.ts"],
+      "@heroor/x-tools": ["./packages/tools/src/index.ts"]
     }
   },
   "include": ["packages/**/*.ts", "vitest.config.ts"]
