@@ -7,6 +7,11 @@
   "bin": {
     "herox": "./dist/index.js"
   },
+  "scripts": {
+    "start": "node dist/index.js",
+    "build": "tsdown src/index.ts --format esm --target node20 --platform node --clean",
+    "pack:dry": "pnpm pack --dry-run"
+  },
   "files": [
     "dist",
     "!dist/*.tsbuildinfo",
@@ -24,6 +29,7 @@
   "tsdown": {
     "fixedExtension": false,
     "dts": false,
+    "sourcemap": true,
     "deps": {
       "alwaysBundle": [
         "@heroor/x-core",
@@ -33,13 +39,9 @@
       ]
     }
   },
-  "scripts": {
-    "build": "tsdown src/index.ts --format esm --target node20 --platform node --clean",
-    "pack:dry": "pnpm pack --dry-run",
-    "start": "node dist/index.js"
-  },
   "dependencies": {
     "@heroor/x-core": "workspace:*",
+    "@heroor/x-providers": "workspace:*",
     "@heroor/x-shared": "workspace:*"
   }
 }

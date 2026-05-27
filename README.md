@@ -23,3 +23,12 @@ pnpm build
 pnpm test
 pnpm --filter @heroor/x pack --dry-run
 ```
+
+Current local CLI checks:
+
+```bash
+node packages/cli/dist/index.js --help
+node packages/cli/dist/index.js config get
+node packages/cli/dist/index.js provider list
+node packages/cli/dist/index.js provider test openai
+```

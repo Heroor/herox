@@ -9,12 +9,13 @@
       "import": "./dist/index.js"
     }
   },
-  "sideEffects": false,
-  "tsdown": {
-    "fixedExtension": false
-  },
   "scripts": {
     "build": "tsdown src/index.ts --format esm --target node20 --platform node --dts --clean"
+  },
+  "sideEffects": false,
+  "tsdown": {
+    "fixedExtension": false,
+    "sourcemap": true
   },
   "dependencies": {
     "@heroor/x-providers": "workspace:*",

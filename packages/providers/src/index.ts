@@ -7,21 +7,115 @@ export interface ProviderPreset {
   compatibility: "openai-chat-completions" | "partial";
 }
 
+export interface ProviderConfigInput {
+  model?: {
+    provider?: string;
+    name?: string;
+    temperature?: number;
+    maxOutputTokens?: number;
+  };
+  providers?: Record<
+    string,
+    {
+      baseURL?: string;
+      baseUrl?: string;
+      apiKey?: string;
+      apiKeyEnv?: string;
+      defaultModel?: string;
+      model?: string;
+      temperature?: number;
+      maxOutputTokens?: number;
+      headers?: Record<string, string>;
+    }
+  >;
+}
+
+export interface ProviderConnection {
+  provider: string;
+  baseUrl: string;
+  model: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+  apiKey?: string;
+  apiKeyEnv?: string;
+  headers?: Record<string, string>;
+  compatibility: ProviderPreset["compatibility"];
+}
+
+export type ChatRole = "system" | "user" | "assistant" | "tool";
+
+export interface ChatMessage {
+  role: ChatRole;
+  content: string;
+  name?: string;
+  tool_call_id?: string;
+}
+
+export interface CreateChatCompletionOptions {
+  messages: ChatMessage[];
+  model?: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+  signal?: AbortSignal;
+}
+
+export interface ChatCompletionResult {
+  content: string;
+  raw: unknown;
+}
+
+export interface ProviderTestResult {
+  status: "ok" | "error";
+  message: string;
+}
+
+export interface FetchResponseLike {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  json(): Promise<unknown>;
+  text(): Promise<string>;
+}
+
+export type FetchLike = (
+  url: string,
+  init: {
+    method: "POST";
+    headers: Record<string, string>;
+    body: string;
+    signal?: AbortSignal;
+  },
+) => Promise<FetchResponseLike>;
+
+export class ProviderError extends Error {
+  readonly status?: number;
+  readonly code?: string;
+  readonly type?: string;
+
+  constructor(message: string, options: { status?: number; code?: string; type?: string } = {}) {
+    super(message);
+    this.name = "ProviderError";
+    this.status = options.status;
+    this.code = options.code;
+    this.type = options.type;
+  }
+}
+
 export const providerPresets: ProviderPreset[] = [
   {
     name: "openai",
     displayName: "OpenAI",
     baseUrl: "https://api.openai.com/v1",
     apiKeyEnv: "OPENAI_API_KEY",
-    defaultModel: "gpt-4.1",
+    defaultModel: "gpt-5.5",
     compatibility: "openai-chat-completions",
   },
   {
     name: "deepseek",
     displayName: "DeepSeek",
-    baseUrl: "https://api.deepseek.com/v1",
+    baseUrl: "https://api.deepseek.com",
     apiKeyEnv: "DEEPSEEK_API_KEY",
-    defaultModel: "deepseek-chat",
+    defaultModel: "deepseek-v4-pro",
     compatibility: "openai-chat-completions",
   },
   {
@@ -41,11 +135,19 @@ export const providerPresets: ProviderPreset[] = [
     compatibility: "openai-chat-completions",
   },
   {
+    name: "mimo",
+    displayName: "Mimo",
+    baseUrl: "https://api.xiaomimimo.com/v1",
+    apiKeyEnv: "MIMO_API_KEY",
+    defaultModel: "mimo-v2.5",
+    compatibility: "openai-chat-completions",
+  },
+  {
     name: "openrouter",
     displayName: "OpenRouter",
     baseUrl: "https://openrouter.ai/api/v1",
     apiKeyEnv: "OPENROUTER_API_KEY",
-    defaultModel: "openai/gpt-4.1",
+    defaultModel: "deepseek/deepseek-v4-flash:free",
     compatibility: "openai-chat-completions",
   },
   {
@@ -59,4 +161,242 @@ export const providerPresets: ProviderPreset[] = [
 
 export function listProviderPresets(): ProviderPreset[] {
   return [...providerPresets];
+}
+
+export function getProviderPreset(name: string): ProviderPreset | undefined {
+  return providerPresets.find((preset) => preset.name === name);
+}
+
+export function resolveProviderConnection(options: {
+  config?: ProviderConfigInput;
+  providerName?: string;
+  env?: NodeJS.ProcessEnv;
+}): ProviderConnection {
+  const config = options.config ?? {};
+  const env = options.env ?? process.env;
+  const providerName = options.providerName ?? config.model?.provider ?? "openai";
+  const preset = getProviderPreset(providerName);
+  const override = config.providers?.[providerName];
+
+  if (preset === undefined && override === undefined) {
+    throw new ProviderError(`Unknown provider "${providerName}".`);
+  }
+
+  const baseUrl = override?.baseURL ?? override?.baseUrl ?? preset?.baseUrl;
+  if (baseUrl === undefined) {
+    throw new ProviderError(`Provider "${providerName}" is missing baseURL.`);
+  }
+
+  const apiKeyEnv = override?.apiKeyEnv ?? preset?.apiKeyEnv;
+  const apiKey = override?.apiKey ?? (apiKeyEnv !== undefined ? env[apiKeyEnv] : undefined);
+  const model =
+    override?.model ?? config.model?.name ?? override?.defaultModel ?? preset?.defaultModel;
+  // Provider-specific generation defaults let one provider tune sampling without
+  // changing the global model defaults used by other providers.
+  const temperature = override?.temperature ?? config.model?.temperature;
+  const maxOutputTokens = override?.maxOutputTokens ?? config.model?.maxOutputTokens;
+
+  if (model === undefined) {
+    throw new ProviderError(`Provider "${providerName}" is missing a model.`);
+  }
+
+  return {
+    provider: providerName,
+    baseUrl,
+    model,
+    temperature,
+    maxOutputTokens,
+    apiKey,
+    apiKeyEnv,
+    headers: override?.headers,
+    compatibility: preset?.compatibility ?? "partial",
+  };
+}
+
+export async function createChatCompletion(
+  connection: ProviderConnection,
+  options: CreateChatCompletionOptions,
+  fetchLike: FetchLike = defaultFetch,
+): Promise<ChatCompletionResult> {
+  const response = await fetchLike(joinUrl(connection.baseUrl, "chat/completions"), {
+    method: "POST",
+    headers: buildHeaders(connection),
+    body: JSON.stringify({
+      model: options.model ?? connection.model,
+      messages: options.messages,
+      temperature: options.temperature ?? connection.temperature,
+      max_tokens: options.maxOutputTokens ?? connection.maxOutputTokens,
+      stream: false,
+    }),
+    signal: options.signal,
+  });
+
+  if (!response.ok) {
+    throw await providerErrorFromResponse(response);
+  }
+
+  const raw = await response.json();
+  return {
+    content: extractAssistantContent(raw),
+    raw,
+  };
+}
+
+export async function testProviderConnection(
+  connection: ProviderConnection,
+  fetchLike: FetchLike = defaultFetch,
+): Promise<ProviderTestResult> {
+  if (connection.apiKeyEnv !== undefined && connection.apiKey === undefined) {
+    return {
+      status: "error",
+      message: `Missing API key. Set ${connection.apiKeyEnv} and retry.`,
+    };
+  }
+
+  try {
+    const result = await createChatCompletion(
+      connection,
+      {
+        messages: [{ role: "user", content: "Reply with OK." }],
+        temperature: connection.temperature ?? 0,
+        maxOutputTokens: connection.maxOutputTokens ?? 8,
+      },
+      fetchLike,
+    );
+
+    return {
+      status: "ok",
+      message:
+        result.content.length > 0 ? `Model responded: ${result.content}` : "Model responded.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "Provider test failed.",
+    };
+  }
+}
+
+export function extractStreamContent(streamText: string): string[] {
+  return parseSseDataLines(streamText).flatMap((data) => {
+    if (data === "[DONE]") {
+      return [];
+    }
+
+    try {
+      const parsed: unknown = JSON.parse(data);
+      const content = readNestedString(parsed, ["choices", "0", "delta", "content"]);
+      return content === undefined ? [] : [content];
+    } catch {
+      return [];
+    }
+  });
+}
+
+function parseSseDataLines(streamText: string): string[] {
+  const events: string[] = [];
+  let current: string[] = [];
+
+  for (const line of streamText.split(/\r?\n/)) {
+    if (line.length === 0) {
+      if (current.length > 0) {
+        events.push(current.join("\n"));
+        current = [];
+      }
+      continue;
+    }
+
+    if (line.startsWith("data:")) {
+      current.push(line.slice("data:".length).trimStart());
+    }
+  }
+
+  if (current.length > 0) {
+    events.push(current.join("\n"));
+  }
+
+  return events;
+}
+
+function buildHeaders(connection: ProviderConnection): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(connection.headers ?? {}),
+  };
+
+  if (connection.apiKey !== undefined) {
+    headers.Authorization = `Bearer ${connection.apiKey}`;
+  }
+
+  return headers;
+}
+
+function extractAssistantContent(raw: unknown): string {
+  return readNestedString(raw, ["choices", "0", "message", "content"]) ?? "";
+}
+
+function readNestedString(value: unknown, path: string[]): string | undefined {
+  let current = value;
+
+  for (const key of path) {
+    if (Array.isArray(current)) {
+      current = current[Number.parseInt(key, 10)];
+      continue;
+    }
+
+    if (!isRecord(current)) {
+      return undefined;
+    }
+
+    current = current[key];
+  }
+
+  return typeof current === "string" ? current : undefined;
+}
+
+async function providerErrorFromResponse(response: FetchResponseLike): Promise<ProviderError> {
+  const text = await response.text();
+  const parsed = parseJson(text);
+  const error = isRecord(parsed) && isRecord(parsed.error) ? parsed.error : undefined;
+
+  return new ProviderError(readErrorMessage(error) ?? `${response.status} ${response.statusText}`, {
+    status: response.status,
+    code: readOptionalString(error, "code"),
+    type: readOptionalString(error, "type"),
+  });
+}
+
+function readErrorMessage(error: Record<string, unknown> | undefined): string | undefined {
+  return readOptionalString(error, "message");
+}
+
+function readOptionalString(
+  value: Record<string, unknown> | undefined,
+  key: string,
+): string | undefined {
+  const entry = value?.[key];
+  return typeof entry === "string" ? entry : undefined;
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+function joinUrl(baseUrl: string, path: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+}
+
+async function defaultFetch(
+  url: string,
+  init: Parameters<FetchLike>[1],
+): Promise<FetchResponseLike> {
+  return fetch(url, init);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -1,0 +1,11 @@
+{
+  "configurations": [
+    {
+      "type": "node-terminal",
+      "name": "运行脚本: dev (herox)",
+      "request": "launch",
+      "command": "pnpm run dev config",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

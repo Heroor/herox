@@ -3,6 +3,18 @@ import type { DoctorCheck, DoctorReport } from "@heroor/x-shared";
 import { createTextBlock } from "@heroor/x-shared";
 import { listBuiltinTools } from "@heroor/x-tools";
 
+export {
+  getConfigValue,
+  loadHeroxConfig,
+  mergeHeroxConfig,
+  type ConfigSource,
+  type HeroxConfig,
+  type HeroxModelConfig,
+  type HeroxProviderConfig,
+  type LoadedHeroxConfig,
+  type LoadHeroxConfigOptions,
+} from "./config.js";
+
 export interface BuildDoctorReportOptions {
   version: string;
   cwd?: string;

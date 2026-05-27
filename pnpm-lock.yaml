@@ -41,6 +41,9 @@ importers:
       '@heroor/x-core':
         specifier: workspace:*
         version: link:../core
+      '@heroor/x-providers':
+        specifier: workspace:*
+        version: link:../providers
       '@heroor/x-shared':
         specifier: workspace:*
         version: link:../shared
