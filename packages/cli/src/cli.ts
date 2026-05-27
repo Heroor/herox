@@ -3,20 +3,20 @@ import {
   formatDoctorReport,
   getConfigValue,
   loadHeroxConfig,
-} from "@heroor/x-core";
+} from "@heroor/x-core"
 import {
   listProviderPresets,
   resolveProviderConnection,
   testProviderConnection,
-} from "@heroor/x-providers";
-import type { CliIo } from "@heroor/x-shared";
-import { createTextBlock } from "@heroor/x-shared";
-import { readFileSync } from "node:fs";
+} from "@heroor/x-providers"
+import type { CliIo } from "@heroor/x-shared"
+import { createTextBlock } from "@heroor/x-shared"
+import { readFileSync } from "node:fs"
 
 export interface RunCliOptions {
-  cwd?: string;
-  env?: NodeJS.ProcessEnv;
-  homeDir?: string;
+  cwd?: string
+  env?: NodeJS.ProcessEnv
+  homeDir?: string
 }
 
 const helpText = createTextBlock([
@@ -37,56 +37,56 @@ const helpText = createTextBlock([
   "Options:",
   "  -h, --help                 Show help",
   "  -v, --version              Show version",
-]);
+])
 
 export async function runCli(
   args: string[] = process.argv.slice(2),
   io: CliIo = { stdout: process.stdout, stderr: process.stderr },
   options: RunCliOptions = {},
 ): Promise<number> {
-  const normalizedArgs = normalizeArgs(args);
-  const [command] = normalizedArgs;
+  const normalizedArgs = normalizeArgs(args)
+  const [command] = normalizedArgs
   const runtime = {
     cwd: options.cwd ?? process.cwd(),
     env: options.env ?? process.env,
     homeDir: options.homeDir,
-  };
+  }
 
   if (command === undefined || command === "-h" || command === "--help" || command === "help") {
-    io.stdout.write(helpText);
-    return 0;
+    io.stdout.write(helpText)
+    return 0
   }
 
   if (command === "-v" || command === "--version" || command === "version") {
-    io.stdout.write(`${readPackageVersion()}\n`);
-    return 0;
+    io.stdout.write(`${readPackageVersion()}\n`)
+    return 0
   }
 
   if (command === "doctor") {
     const report = buildDoctorReport({
       cwd: runtime.cwd,
       version: readPackageVersion(),
-    });
-    io.stdout.write(formatDoctorReport(report));
-    return hasDoctorErrors(report.checks) ? 1 : 0;
+    })
+    io.stdout.write(formatDoctorReport(report))
+    return hasDoctorErrors(report.checks) ? 1 : 0
   }
 
   if (command === "config") {
-    return handleConfigCommand(normalizedArgs.slice(1), io, runtime);
+    return handleConfigCommand(normalizedArgs.slice(1), io, runtime)
   }
 
   if (command === "provider") {
-    return handleProviderCommand(normalizedArgs.slice(1), io, runtime);
+    return handleProviderCommand(normalizedArgs.slice(1), io, runtime)
   }
 
   if (command === "run" || command === "init" || command === "resume") {
-    io.stderr.write(`herox "${command}" is not implemented yet.\n`);
-    return 2;
+    io.stderr.write(`herox "${command}" is not implemented yet.\n`)
+    return 2
   }
 
-  io.stderr.write(`Unknown command: "${command}"\n\n`);
-  io.stderr.write(helpText);
-  return 1;
+  io.stderr.write(`Unknown command: "${command}"\n\n`)
+  io.stderr.write(helpText)
+  return 1
 }
 
 function handleConfigCommand(
@@ -94,14 +94,14 @@ function handleConfigCommand(
   io: CliIo,
   runtime: Required<Pick<RunCliOptions, "cwd" | "env">> & Pick<RunCliOptions, "homeDir">,
 ): number {
-  const [subcommand, key] = args;
-  const loaded = loadHeroxConfig(runtime);
+  const [subcommand, key] = args
+  const loaded = loadHeroxConfig(runtime)
 
   if (subcommand === "get" || subcommand === undefined) {
     io.stdout.write(
       `${JSON.stringify(redactConfigValue(getConfigValue(loaded.config, key), key), null, 2)}\n`,
-    );
-    return 0;
+    )
+    return 0
   }
 
   if (subcommand === "paths") {
@@ -109,16 +109,16 @@ function handleConfigCommand(
       createTextBlock([
         `workspaceRoot: ${loaded.workspaceRoot}`,
         ...loaded.sources.map((source) => {
-          const state = source.exists ? "found" : "missing";
-          return `${source.label}: ${state} ${source.path}${source.error ? ` (${source.error})` : ""}`;
+          const state = source.exists ? "found" : "missing"
+          return `${source.label}: ${state} ${source.path}${source.error ? ` (${source.error})` : ""}`
         }),
       ]),
-    );
-    return loaded.sources.some((source) => source.error !== undefined) ? 1 : 0;
+    )
+    return loaded.sources.some((source) => source.error !== undefined) ? 1 : 0
   }
 
-  io.stderr.write(`Unknown config command: "${subcommand}"\n`);
-  return 1;
+  io.stderr.write(`Unknown config command: "${subcommand}"\n`)
+  return 1
 }
 
 async function handleProviderCommand(
@@ -126,35 +126,35 @@ async function handleProviderCommand(
   io: CliIo,
   runtime: Required<Pick<RunCliOptions, "cwd" | "env">> & Pick<RunCliOptions, "homeDir">,
 ): Promise<number> {
-  const [subcommand, providerName] = args;
+  const [subcommand, providerName] = args
 
   if (subcommand === "list" || subcommand === undefined) {
-    io.stdout.write(formatProviderList());
-    return 0;
+    io.stdout.write(formatProviderList())
+    return 0
   }
 
   if (subcommand === "test") {
-    const loaded = loadHeroxConfig(runtime);
+    const loaded = loadHeroxConfig(runtime)
 
     try {
       const connection = resolveProviderConnection({
         config: loaded.config,
         providerName,
         env: mergeProviderEnv(loaded.config.env, runtime.env),
-      });
-      const result = await testProviderConnection(connection);
+      })
+      const result = await testProviderConnection(connection)
       io.stdout.write(
         `${result.status.toUpperCase()} ${connection.provider}(${connection.model}): ${result.message}\n`,
-      );
-      return result.status === "ok" ? 0 : 1;
+      )
+      return result.status === "ok" ? 0 : 1
     } catch (error) {
-      io.stderr.write(`${error instanceof Error ? error.message : "Provider test failed."}\n`);
-      return 1;
+      io.stderr.write(`${error instanceof Error ? error.message : "Provider test failed."}\n`)
+      return 1
     }
   }
 
-  io.stderr.write(`Unknown provider command: "${subcommand}"\n`);
-  return 1;
+  io.stderr.write(`Unknown provider command: "${subcommand}"\n`)
+  return 1
 }
 
 function mergeProviderEnv(
@@ -164,7 +164,7 @@ function mergeProviderEnv(
   return {
     ...configEnv,
     ...runtimeEnv,
-  };
+  }
 }
 
 function formatProviderList(): string {
@@ -172,21 +172,23 @@ function formatProviderList(): string {
     "Provider presets",
     "",
     ...listProviderPresets().map((provider) => {
-      const key = provider.apiKeyEnv === undefined ? "no key" : provider.apiKeyEnv;
-      return `${provider.name.padEnd(12, " ")} ${provider.defaultModel.padEnd(22, " ")} ${key}`;
+      const key = provider.apiKeyEnv === undefined ? "no key" : provider.apiKeyEnv
+      return `${provider.name.padEnd(12, " ")} ${provider.defaultModel.padEnd(22, " ")} ${key}`
     }),
-  ];
+  ]
 
-  return createTextBlock(lines);
+  return createTextBlock(lines)
 }
 
 function redactConfigValue(value: unknown, path?: string): unknown {
   if (path !== undefined && shouldRedactConfigPath(path, value)) {
-    return value === undefined ? undefined : "<redacted>";
+    return value === undefined ? undefined : "<redacted>"
   }
 
   if (Array.isArray(value)) {
-    return value.map((entry, index) => redactConfigValue(entry, appendConfigPath(path, String(index))));
+    return value.map((entry, index) =>
+      redactConfigValue(entry, appendConfigPath(path, String(index))),
+    )
   }
 
   if (typeof value === "object" && value !== null) {
@@ -197,30 +199,30 @@ function redactConfigValue(value: unknown, path?: string): unknown {
           ? "<redacted>"
           : redactConfigValue(entry, appendConfigPath(path, key)),
       ]),
-    );
+    )
   }
 
-  return value;
+  return value
 }
 
 function appendConfigPath(path: string | undefined, key: string): string {
-  return path === undefined || path.length === 0 ? key : `${path}.${key}`;
+  return path === undefined || path.length === 0 ? key : `${path}.${key}`
 }
 
 function shouldRedactConfigPath(path: string, value: unknown): boolean {
-  const segments = path.split(".");
-  const key = segments.at(-1) ?? "";
+  const segments = path.split(".")
+  const key = segments.at(-1) ?? ""
 
-  return isSecretKey(key) || (segments[0] === "env" && !isRedactableContainer(value));
+  return isSecretKey(key) || (segments[0] === "env" && !isRedactableContainer(value))
 }
 
 function isRedactableContainer(value: unknown): boolean {
-  return typeof value === "object" && value !== null;
+  return typeof value === "object" && value !== null
 }
 
 function isSecretKey(key: string): boolean {
-  const normalized = key.toLowerCase();
-  const compact = normalized.replace(/[^a-z0-9]/g, "");
+  const normalized = key.toLowerCase()
+  const compact = normalized.replace(/[^a-z0-9]/g, "")
 
   return (
     compact === "apikey" ||
@@ -229,24 +231,24 @@ function isSecretKey(key: string): boolean {
     compact.endsWith("token") ||
     compact.endsWith("secret") ||
     compact.endsWith("password")
-  );
+  )
 }
 
 function normalizeArgs(args: string[]): string[] {
-  return args[0] === "--" ? args.slice(1) : args;
+  return args[0] === "--" ? args.slice(1) : args
 }
 
 function readPackageVersion(): string {
   try {
     const packageJson = JSON.parse(
       readFileSync(new URL("../package.json", import.meta.url), "utf8"),
-    );
-    return typeof packageJson.version === "string" ? packageJson.version : "0.0.0";
+    )
+    return typeof packageJson.version === "string" ? packageJson.version : "0.0.0"
   } catch {
-    return "0.0.0";
+    return "0.0.0"
   }
 }
 
 function hasDoctorErrors(checks: Array<{ status: string }>): boolean {
-  return checks.some((check) => check.status === "error");
+  return checks.some((check) => check.status === "error")
 }

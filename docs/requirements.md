@@ -294,11 +294,11 @@ Herox 内部所有工具都注册为统一结构：
 
 ```ts
 interface ToolDefinition {
-  name: string;
-  description: string;
-  inputSchema: JsonSchema;
-  risk: "read" | "write" | "execute" | "network" | "destructive";
-  execute(input: unknown, context: ToolContext): Promise<ToolResult>;
+  name: string
+  description: string
+  inputSchema: JsonSchema
+  risk: "read" | "write" | "execute" | "network" | "destructive"
+  execute(input: unknown, context: ToolContext): Promise<ToolResult>
 }
 ```
 

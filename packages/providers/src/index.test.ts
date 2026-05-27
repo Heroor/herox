@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest"
 
 import {
   createChatCompletion,
   extractStreamContent,
   resolveProviderConnection,
   testProviderConnection,
-} from "./index.js";
+} from "./index.js"
 
 describe("resolveProviderConnection", () => {
   it("combines preset, config override, and env key", () => {
@@ -22,15 +22,15 @@ describe("resolveProviderConnection", () => {
         },
       },
       env: { DEEPSEEK_API_KEY: "secret" },
-    });
+    })
 
-    expect(connection.provider).toBe("deepseek");
-    expect(connection.baseUrl).toBe("https://example.test/v1");
-    expect(connection.apiKey).toBe("secret");
-    expect(connection.model).toBe("deepseek-model");
-    expect(connection.temperature).toBe(0.1);
-    expect(connection.maxOutputTokens).toBe(1024);
-  });
+    expect(connection.provider).toBe("deepseek")
+    expect(connection.baseUrl).toBe("https://example.test/v1")
+    expect(connection.apiKey).toBe("secret")
+    expect(connection.model).toBe("deepseek-model")
+    expect(connection.temperature).toBe(0.1)
+    expect(connection.maxOutputTokens).toBe(1024)
+  })
 
   it("uses model generation defaults when the provider does not override them", () => {
     const connection = resolveProviderConnection({
@@ -47,16 +47,16 @@ describe("resolveProviderConnection", () => {
           },
         },
       },
-    });
+    })
 
-    expect(connection.temperature).toBe(0.2);
-    expect(connection.maxOutputTokens).toBe(2048);
-  });
-});
+    expect(connection.temperature).toBe(0.2)
+    expect(connection.maxOutputTokens).toBe(2048)
+  })
+})
 
 describe("createChatCompletion", () => {
   it("posts an OpenAI-compatible chat completion request", async () => {
-    const calls: Array<{ url: string; init: RequestInitLike }> = [];
+    const calls: Array<{ url: string; init: RequestInitLike }> = []
     const result = await createChatCompletion(
       {
         provider: "test",
@@ -73,28 +73,28 @@ describe("createChatCompletion", () => {
         maxOutputTokens: 8,
       },
       async (url, init) => {
-        calls.push({ url, init });
+        calls.push({ url, init })
         return jsonResponse({
           choices: [{ message: { role: "assistant", content: "OK" } }],
-        });
+        })
       },
-    );
+    )
 
-    expect(calls[0]?.url).toBe("https://example.test/v1/chat/completions");
+    expect(calls[0]?.url).toBe("https://example.test/v1/chat/completions")
     expect(calls[0]?.init.headers).toMatchObject({
       Authorization: "Bearer secret",
       "Content-Type": "application/json",
-    });
+    })
     expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
       model: "test-model",
       temperature: 0.7,
       max_tokens: 8,
-    });
-    expect(result.content).toBe("OK");
-  });
+    })
+    expect(result.content).toBe("OK")
+  })
 
   it("uses connection generation defaults when request options omit them", async () => {
-    const calls: Array<{ url: string; init: RequestInitLike }> = [];
+    const calls: Array<{ url: string; init: RequestInitLike }> = []
     await createChatCompletion(
       {
         provider: "test",
@@ -108,19 +108,19 @@ describe("createChatCompletion", () => {
         messages: [{ role: "user", content: "Say OK" }],
       },
       async (url, init) => {
-        calls.push({ url, init });
+        calls.push({ url, init })
         return jsonResponse({
           choices: [{ message: { role: "assistant", content: "OK" } }],
-        });
+        })
       },
-    );
+    )
 
     expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
       temperature: 0.3,
       max_tokens: 16,
-    });
-  });
-});
+    })
+  })
+})
 
 describe("stream parser", () => {
   it("extracts delta content from server-sent events", () => {
@@ -131,11 +131,11 @@ describe("stream parser", () => {
       "",
       "data: [DONE]",
       "",
-    ].join("\n");
+    ].join("\n")
 
-    expect(extractStreamContent(stream)).toEqual(["O", "K"]);
-  });
-});
+    expect(extractStreamContent(stream)).toEqual(["O", "K"])
+  })
+})
 
 describe("testProviderConnection", () => {
   it("does not call the network when an API key is missing", async () => {
@@ -148,16 +148,16 @@ describe("testProviderConnection", () => {
         compatibility: "openai-chat-completions",
       },
       async () => {
-        throw new Error("network should not be called");
+        throw new Error("network should not be called")
       },
-    );
+    )
 
-    expect(result.status).toBe("error");
-    expect(result.message).toContain("OPENAI_API_KEY");
-  });
+    expect(result.status).toBe("error")
+    expect(result.message).toContain("OPENAI_API_KEY")
+  })
 
   it("uses configured generation defaults for the test request", async () => {
-    const calls: Array<{ url: string; init: RequestInitLike }> = [];
+    const calls: Array<{ url: string; init: RequestInitLike }> = []
     const result = await testProviderConnection(
       {
         provider: "openai",
@@ -168,24 +168,24 @@ describe("testProviderConnection", () => {
         compatibility: "openai-chat-completions",
       },
       async (url, init) => {
-        calls.push({ url, init });
+        calls.push({ url, init })
         return jsonResponse({
           choices: [{ message: { role: "assistant", content: "OK" } }],
-        });
+        })
       },
-    );
+    )
 
-    expect(result.status).toBe("ok");
+    expect(result.status).toBe("ok")
     expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
       temperature: 0.6,
       max_tokens: 32,
-    });
-  });
-});
+    })
+  })
+})
 
 interface RequestInitLike {
-  headers?: Record<string, string>;
-  body?: unknown;
+  headers?: Record<string, string>
+  body?: unknown
 }
 
 function jsonResponse(data: unknown) {
@@ -195,5 +195,5 @@ function jsonResponse(data: unknown) {
     statusText: "OK",
     json: async () => data,
     text: async () => JSON.stringify(data),
-  };
+  }
 }

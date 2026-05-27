@@ -1,7 +1,7 @@
-import { listProviderPresets } from "@heroor/x-providers";
-import type { DoctorCheck, DoctorReport } from "@heroor/x-shared";
-import { createTextBlock } from "@heroor/x-shared";
-import { listBuiltinTools } from "@heroor/x-tools";
+import { listProviderPresets } from "@heroor/x-providers"
+import type { DoctorCheck, DoctorReport } from "@heroor/x-shared"
+import { createTextBlock } from "@heroor/x-shared"
+import { listBuiltinTools } from "@heroor/x-tools"
 
 export {
   getConfigValue,
@@ -13,19 +13,19 @@ export {
   type HeroxProviderConfig,
   type LoadedHeroxConfig,
   type LoadHeroxConfigOptions,
-} from "./config.js";
+} from "./config.js"
 
 export interface BuildDoctorReportOptions {
-  version: string;
-  cwd?: string;
-  nodeVersion?: string;
+  version: string
+  cwd?: string
+  nodeVersion?: string
 }
 
 export function buildDoctorReport(options: BuildDoctorReportOptions): DoctorReport {
-  const nodeVersion = options.nodeVersion ?? process.version;
-  const nodeMajor = parseNodeMajor(nodeVersion);
-  const providerCount = listProviderPresets().length;
-  const toolCount = listBuiltinTools().length;
+  const nodeVersion = options.nodeVersion ?? process.version
+  const nodeMajor = parseNodeMajor(nodeVersion)
+  const providerCount = listProviderPresets().length
+  const toolCount = listBuiltinTools().length
 
   const checks: DoctorCheck[] = [
     {
@@ -56,12 +56,12 @@ export function buildDoctorReport(options: BuildDoctorReportOptions): DoctorRepo
       status: toolCount > 0 ? "ok" : "warn",
       message: `${toolCount} tools registered`,
     },
-  ];
+  ]
 
   return {
     title: "Herox doctor",
     checks,
-  };
+  }
 }
 
 export function formatDoctorReport(report: DoctorReport): string {
@@ -69,18 +69,18 @@ export function formatDoctorReport(report: DoctorReport): string {
     report.title,
     "",
     ...report.checks.map((check) => {
-      const label = check.status.toUpperCase().padEnd(5, " ");
-      return `${label} ${check.name}: ${check.message}`;
+      const label = check.status.toUpperCase().padEnd(5, " ")
+      return `${label} ${check.name}: ${check.message}`
     }),
-  ];
+  ]
 
-  return createTextBlock(lines);
+  return createTextBlock(lines)
 }
 
 function parseNodeMajor(version: string): number {
   // Node reports versions as "v20.11.1"; stripping the prefix keeps prerelease
   // and test inputs on the same simple code path.
-  const [major] = version.replace(/^v/, "").split(".");
-  const parsed = Number.parseInt(major ?? "", 10);
-  return Number.isFinite(parsed) ? parsed : 0;
+  const [major] = version.replace(/^v/, "").split(".")
+  const parsed = Number.parseInt(major ?? "", 10)
+  return Number.isFinite(parsed) ? parsed : 0
 }

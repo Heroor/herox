@@ -1,9 +1,9 @@
-export type ToolRisk = "read" | "write" | "execute" | "network" | "destructive";
+export type ToolRisk = "read" | "write" | "execute" | "network" | "destructive"
 
 export interface BuiltinTool {
-  name: string;
-  description: string;
-  risk: ToolRisk;
+  name: string
+  description: string
+  risk: ToolRisk
 }
 
 export const builtinTools: BuiltinTool[] = [
@@ -42,8 +42,8 @@ export const builtinTools: BuiltinTool[] = [
     description: "Inspect git diffs without changing repository state.",
     risk: "read",
   },
-];
+]
 
 export function listBuiltinTools(): BuiltinTool[] {
-  return [...builtinTools];
+  return [...builtinTools]
 }
