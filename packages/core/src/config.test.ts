@@ -40,7 +40,6 @@ describe("loadHeroxConfig", () => {
       env: { HEROX_MODEL: "env-model" },
       homeDir: home,
     })
-    console.log("result", result)
 
     expect(result.config.model.provider).toBe("deepseek")
     expect(result.config.model.name).toBe("env-model")

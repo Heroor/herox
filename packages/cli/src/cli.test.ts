@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import packageJson from "../package.json" with { type: "json" }
 
 import { runCli } from "./cli.js"
 
@@ -30,7 +31,7 @@ describe("runCli", () => {
     })
 
     expect(code).toBe(0)
-    expect(output.join("")).toContain("0.1.0")
+    expect(output.join("")).toContain(packageJson.version)
   })
 
   it("runs doctor", async () => {
