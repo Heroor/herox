@@ -1,6 +1,6 @@
 {
   "name": "@heroor/x",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Herox Agent CLI for OpenAI-compatible AI models and local developer workflows.",
   "license": "MIT",
   "type": "module",
