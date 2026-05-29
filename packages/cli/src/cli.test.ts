@@ -1,94 +1,94 @@
-import { randomUUID } from "node:crypto"
-import { mkdirSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { afterEach, describe, expect, it, vi } from "vitest"
-import packageJson from "../package.json" with { type: "json" }
+import { randomUUID } from 'node:crypto'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import packageJson from '../package.json' with { type: 'json' }
 
-import { runCli } from "./cli.js"
+import { runCli } from './cli.js'
 
 afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe("runCli", () => {
-  it("prints help", async () => {
+describe('runCli', () => {
+  it('prints help', async () => {
     const output: string[] = []
-    const code = await runCli(["--help"], {
+    const code = await runCli(['--help'], {
       stdout: { write: (chunk) => append(output, chunk) },
       stderr: { write: (chunk) => append(output, chunk) },
     })
 
     expect(code).toBe(0)
-    expect(output.join("")).toContain("Usage: herox")
+    expect(output.join('')).toContain('Usage: herox')
   })
 
-  it("prints version", async () => {
+  it('prints version', async () => {
     const output: string[] = []
-    const code = await runCli(["--version"], {
+    const code = await runCli(['--version'], {
       stdout: { write: (chunk) => append(output, chunk) },
       stderr: { write: (chunk) => append(output, chunk) },
     })
 
     expect(code).toBe(0)
-    expect(output.join("")).toContain(packageJson.version)
+    expect(output.join('')).toContain(packageJson.version)
   })
 
-  it("runs doctor", async () => {
+  it('runs doctor', async () => {
     const output: string[] = []
-    const code = await runCli(["doctor"], {
+    const code = await runCli(['doctor'], {
       stdout: { write: (chunk) => append(output, chunk) },
       stderr: { write: (chunk) => append(output, chunk) },
     })
 
     expect(code).toBe(0)
-    expect(output.join("")).toContain("Herox doctor")
+    expect(output.join('')).toContain('Herox doctor')
   })
 
-  it("lists provider presets", async () => {
+  it('lists provider presets', async () => {
     const output: string[] = []
-    const code = await runCli(["provider", "list"], {
+    const code = await runCli(['provider', 'list'], {
       stdout: { write: (chunk) => append(output, chunk) },
       stderr: { write: (chunk) => append(output, chunk) },
     })
 
     expect(code).toBe(0)
-    expect(output.join("")).toContain("openai")
-    expect(output.join("")).toContain("deepseek")
+    expect(output.join('')).toContain('openai')
+    expect(output.join('')).toContain('deepseek')
   })
 
-  it("prints effective config values", async () => {
+  it('prints effective config values', async () => {
     const output: string[] = []
     const code = await runCli(
-      ["config", "get", "model.provider"],
+      ['config', 'get', 'model.provider'],
       {
         stdout: { write: (chunk) => append(output, chunk) },
         stderr: { write: (chunk) => append(output, chunk) },
       },
       {
-        env: { HEROX_PROVIDER: "ollama" },
-        cwd: "/tmp/herox-missing",
-        homeDir: "/tmp/herox-missing-home",
+        env: { HEROX_PROVIDER: 'ollama' },
+        cwd: '/tmp/herox-missing',
+        homeDir: '/tmp/herox-missing-home',
       },
     )
 
     expect(code).toBe(0)
-    expect(output.join("").trim()).toBe('"ollama"')
+    expect(output.join('').trim()).toBe('"ollama"')
   })
 
-  it("redacts secret config values", async () => {
+  it('redacts secret config values', async () => {
     const root = join(tmpdir(), `herox-cli-${randomUUID()}`)
-    const home = join(root, "home")
-    mkdirSync(join(home, ".herox"), { recursive: true })
+    const home = join(root, 'home')
+    mkdirSync(join(home, '.herox'), { recursive: true })
     writeFileSync(
-      join(home, ".herox", "settings.json"),
+      join(home, '.herox', 'settings.json'),
       JSON.stringify({
         env: {
-          OPENAI_API_KEY: "sk-env-secret",
+          OPENAI_API_KEY: 'sk-env-secret',
         },
         providers: {
           openai: {
-            apiKey: "sk-test-secret",
+            apiKey: 'sk-test-secret',
           },
         },
       }),
@@ -96,7 +96,7 @@ describe("runCli", () => {
 
     const output: string[] = []
     const code = await runCli(
-      ["config", "get"],
+      ['config', 'get'],
       {
         stdout: { write: (chunk) => append(output, chunk) },
         stderr: { write: (chunk) => append(output, chunk) },
@@ -109,29 +109,29 @@ describe("runCli", () => {
     )
 
     expect(code).toBe(0)
-    expect(output.join("")).toContain("<redacted>")
-    expect(output.join("")).toContain("OPENAI_API_KEY")
-    expect(output.join("")).not.toContain("sk-test-secret")
-    expect(output.join("")).not.toContain("sk-env-secret")
+    expect(output.join('')).toContain('<redacted>')
+    expect(output.join('')).toContain('OPENAI_API_KEY')
+    expect(output.join('')).not.toContain('sk-test-secret')
+    expect(output.join('')).not.toContain('sk-env-secret')
   })
 
-  it("redacts env values when printing env config directly", async () => {
+  it('redacts env values when printing env config directly', async () => {
     const root = join(tmpdir(), `herox-cli-${randomUUID()}`)
-    const home = join(root, "home")
-    mkdirSync(join(home, ".herox"), { recursive: true })
+    const home = join(root, 'home')
+    mkdirSync(join(home, '.herox'), { recursive: true })
     writeFileSync(
-      join(home, ".herox", "settings.json"),
+      join(home, '.herox', 'settings.json'),
       JSON.stringify({
         env: {
-          OPENAI_API_KEY: "sk-env-secret",
-          HEROX_CONFIG_DIR: "/private/herox",
+          OPENAI_API_KEY: 'sk-env-secret',
+          HEROX_CONFIG_DIR: '/private/herox',
         },
       }),
     )
 
     const output: string[] = []
     const code = await runCli(
-      ["config", "get", "env"],
+      ['config', 'get', 'env'],
       {
         stdout: { write: (chunk) => append(output, chunk) },
         stderr: { write: (chunk) => append(output, chunk) },
@@ -144,29 +144,29 @@ describe("runCli", () => {
     )
 
     expect(code).toBe(0)
-    expect(output.join("")).toContain("OPENAI_API_KEY")
-    expect(output.join("")).toContain("HEROX_CONFIG_DIR")
-    expect(output.join("")).toContain("<redacted>")
-    expect(output.join("")).not.toContain("sk-env-secret")
-    expect(output.join("")).not.toContain("/private/herox")
+    expect(output.join('')).toContain('OPENAI_API_KEY')
+    expect(output.join('')).toContain('HEROX_CONFIG_DIR')
+    expect(output.join('')).toContain('<redacted>')
+    expect(output.join('')).not.toContain('sk-env-secret')
+    expect(output.join('')).not.toContain('/private/herox')
   })
 
-  it("redacts exact env config values", async () => {
+  it('redacts exact env config values', async () => {
     const root = join(tmpdir(), `herox-cli-${randomUUID()}`)
-    const home = join(root, "home")
-    mkdirSync(join(home, ".herox"), { recursive: true })
+    const home = join(root, 'home')
+    mkdirSync(join(home, '.herox'), { recursive: true })
     writeFileSync(
-      join(home, ".herox", "settings.json"),
+      join(home, '.herox', 'settings.json'),
       JSON.stringify({
         env: {
-          OPENAI_API_KEY: "sk-env-secret",
+          OPENAI_API_KEY: 'sk-env-secret',
         },
       }),
     )
 
     const output: string[] = []
     const code = await runCli(
-      ["config", "get", "env.OPENAI_API_KEY"],
+      ['config', 'get', 'env.OPENAI_API_KEY'],
       {
         stdout: { write: (chunk) => append(output, chunk) },
         stderr: { write: (chunk) => append(output, chunk) },
@@ -179,38 +179,38 @@ describe("runCli", () => {
     )
 
     expect(code).toBe(0)
-    expect(output.join("").trim()).toBe('"<redacted>"')
-    expect(output.join("")).not.toContain("sk-env-secret")
+    expect(output.join('').trim()).toBe('"<redacted>"')
+    expect(output.join('')).not.toContain('sk-env-secret')
   })
 
-  it("uses settings env values for provider apiKeyEnv", async () => {
+  it('uses settings env values for provider apiKeyEnv', async () => {
     const root = join(tmpdir(), `herox-cli-${randomUUID()}`)
-    const home = join(root, "home")
-    mkdirSync(join(home, ".herox"), { recursive: true })
+    const home = join(root, 'home')
+    mkdirSync(join(home, '.herox'), { recursive: true })
     writeFileSync(
-      join(home, ".herox", "settings.json"),
+      join(home, '.herox', 'settings.json'),
       JSON.stringify({
         env: {
-          OPENAI_API_KEY: "from-settings-env",
+          OPENAI_API_KEY: 'from-settings-env',
         },
       }),
     )
 
     const calls: Array<{ headers?: Record<string, string> }> = []
-    vi.stubGlobal("fetch", async (_url: string, init: { headers?: Record<string, string> }) => {
+    vi.stubGlobal('fetch', async (_url: string, init: { headers?: Record<string, string> }) => {
       calls.push({ headers: init.headers })
       return {
         ok: true,
         status: 200,
-        statusText: "OK",
-        json: async () => ({ choices: [{ message: { role: "assistant", content: "OK" } }] }),
-        text: async () => "{}",
+        statusText: 'OK',
+        json: async () => ({ choices: [{ message: { role: 'assistant', content: 'OK' } }] }),
+        text: async () => '{}',
       }
     })
 
     const output: string[] = []
     const code = await runCli(
-      ["provider", "test", "openai"],
+      ['provider', 'test', 'openai'],
       {
         stdout: { write: (chunk) => append(output, chunk) },
         stderr: { write: (chunk) => append(output, chunk) },
@@ -224,59 +224,59 @@ describe("runCli", () => {
 
     expect(code).toBe(0)
     expect(calls[0]?.headers).toMatchObject({
-      Authorization: "Bearer from-settings-env",
+      Authorization: 'Bearer from-settings-env',
     })
-    expect(output.join("")).toContain("OK openai")
+    expect(output.join('')).toContain('OK openai')
   })
 
-  it("requires a task for one-shot run", async () => {
+  it('requires a task for one-shot run', async () => {
     const output: string[] = []
-    const code = await runCli(["run"], {
+    const code = await runCli(['run'], {
       stdout: { write: (chunk) => append(output, chunk) },
       stderr: { write: (chunk) => append(output, chunk) },
     })
 
     expect(code).toBe(2)
-    expect(output.join("")).toContain("Usage: herox run <task>")
+    expect(output.join('')).toContain('Usage: herox run <task>')
   })
 
-  it("runs a one-shot task with HEROX instructions and streamed output", async () => {
+  it('runs a one-shot task with HEROX instructions and streamed output', async () => {
     const root = join(tmpdir(), `herox-cli-${randomUUID()}`)
-    const home = join(root, "home")
-    mkdirSync(join(home, ".herox"), { recursive: true })
-    writeFileSync(join(home, ".herox", "HEROX.md"), "Prefer concise output.")
-    writeFileSync(join(root, "HEROX.md"), "Add comments for complex logic.")
+    const home = join(root, 'home')
+    mkdirSync(join(home, '.herox'), { recursive: true })
+    writeFileSync(join(home, '.herox', 'HEROX.md'), 'Prefer concise output.')
+    writeFileSync(join(root, 'HEROX.md'), 'Add comments for complex logic.')
 
     const calls: Array<{ headers?: Record<string, string>; body?: string }> = []
     vi.stubGlobal(
-      "fetch",
+      'fetch',
       async (_url: string, init: { headers?: Record<string, string>; body?: string }) => {
         calls.push({ headers: init.headers, body: init.body })
         return streamResponse([
           'data: {"choices":[{"delta":{"content":"Done"}}]}\n\n',
-          "data: [DONE]\n\n",
+          'data: [DONE]\n\n',
         ])
       },
     )
 
     const output: string[] = []
     const code = await runCli(
-      ["run", "fix", "tests"],
+      ['run', 'fix', 'tests'],
       {
         stdout: { write: (chunk) => append(output, chunk) },
         stderr: { write: (chunk) => append(output, chunk) },
       },
       {
-        env: { OPENAI_API_KEY: "secret" },
+        env: { OPENAI_API_KEY: 'secret' },
         cwd: root,
         homeDir: home,
       },
     )
 
     expect(code).toBe(0)
-    expect(output.join("")).toBe("Done\n")
+    expect(output.join('')).toBe('Done\n')
     expect(calls[0]?.headers).toMatchObject({
-      Authorization: "Bearer secret",
+      Authorization: 'Bearer secret',
     })
     expect(JSON.parse(String(calls[0]?.body))).toMatchObject({
       stream: true,
@@ -284,34 +284,34 @@ describe("runCli", () => {
     expect(JSON.parse(String(calls[0]?.body)).messages).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          role: "system",
-          content: expect.stringContaining("Add comments for complex logic."),
+          role: 'system',
+          content: expect.stringContaining('Add comments for complex logic.'),
         }),
         expect.objectContaining({
-          role: "user",
-          content: "fix tests",
+          role: 'user',
+          content: 'fix tests',
         }),
       ]),
     )
   })
 
-  it("does not run a one-shot task when the API key is missing", async () => {
+  it('does not run a one-shot task when the API key is missing', async () => {
     const output: string[] = []
     const code = await runCli(
-      ["run", "fix tests"],
+      ['run', 'fix tests'],
       {
         stdout: { write: (chunk) => append(output, chunk) },
         stderr: { write: (chunk) => append(output, chunk) },
       },
       {
         env: {},
-        cwd: "/tmp/herox-missing",
-        homeDir: "/tmp/herox-missing-home",
+        cwd: '/tmp/herox-missing',
+        homeDir: '/tmp/herox-missing-home',
       },
     )
 
     expect(code).toBe(1)
-    expect(output.join("")).toContain("Missing API key. Set OPENAI_API_KEY")
+    expect(output.join('')).toContain('Missing API key. Set OPENAI_API_KEY')
   })
 })
 
@@ -326,7 +326,7 @@ function streamResponse(chunks: string[]) {
   return {
     ok: true,
     status: 200,
-    statusText: "OK",
+    statusText: 'OK',
     body: new ReadableStream<Uint8Array>({
       start(controller) {
         for (const chunk of chunks) {
@@ -336,6 +336,6 @@ function streamResponse(chunks: string[]) {
       },
     }),
     json: async () => ({}),
-    text: async () => chunks.join(""),
+    text: async () => chunks.join(''),
   }
 }

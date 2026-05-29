@@ -297,7 +297,7 @@ interface ToolDefinition {
   name: string
   description: string
   inputSchema: JsonSchema
-  risk: "read" | "write" | "execute" | "network" | "destructive"
+  risk: 'read' | 'write' | 'execute' | 'network' | 'destructive'
   execute(input: unknown, context: ToolContext): Promise<ToolResult>
 }
 ```

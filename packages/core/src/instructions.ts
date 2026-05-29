@@ -1,8 +1,8 @@
-import { existsSync, readFileSync } from "node:fs"
-import { homedir } from "node:os"
-import { join } from "node:path"
+import { existsSync, readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 
-import type { ChatMessage } from "@heroor/x-providers"
+import type { ChatMessage } from '@heroor/x-providers'
 
 export interface InstructionSource {
   label: string
@@ -28,22 +28,22 @@ export interface BuildRunMessagesOptions {
 }
 
 const defaultSystemPrompt = [
-  "You are Herox, a local developer agent CLI.",
-  "Help the user complete software engineering tasks with concise, actionable output.",
-].join(" ")
+  'You are Herox, a local developer agent CLI.',
+  'Help the user complete software engineering tasks with concise, actionable output.',
+].join(' ')
 
 export function loadHeroxInstructions(
   options: LoadHeroxInstructionsOptions,
 ): LoadedHeroxInstructions {
   const sourcePaths = [
-    { label: "user", path: join(options.homeDir ?? homedir(), ".herox", "HEROX.md") },
-    { label: "project", path: join(options.workspaceRoot, "HEROX.md") },
+    { label: 'user', path: join(options.homeDir ?? homedir(), '.herox', 'HEROX.md') },
+    { label: 'project', path: join(options.workspaceRoot, 'HEROX.md') },
   ]
   const sources = sourcePaths.map((source) => readInstructionSource(source.label, source.path))
   const content = sources
     .filter((source) => source.content !== undefined && source.content.trim().length > 0)
     .map((source) => `# ${source.label} instructions\n\n${source.content}`)
-    .join("\n\n")
+    .join('\n\n')
 
   return {
     sources,
@@ -60,11 +60,11 @@ export function buildRunMessages(options: BuildRunMessagesOptions): ChatMessage[
 
   return [
     {
-      role: "system",
+      role: 'system',
       content: systemContent,
     },
     {
-      role: "user",
+      role: 'user',
       content: options.task,
     },
   ]
@@ -84,14 +84,14 @@ function readInstructionSource(label: string, path: string): InstructionSource {
       label,
       path,
       exists: true,
-      content: readFileSync(path, "utf8"),
+      content: readFileSync(path, 'utf8'),
     }
   } catch (error) {
     return {
       label,
       path,
       exists: true,
-      error: error instanceof Error ? error.message : "Unknown instruction read error.",
+      error: error instanceof Error ? error.message : 'Unknown instruction read error.',
     }
   }
 }

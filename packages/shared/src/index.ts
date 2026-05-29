@@ -1,4 +1,4 @@
-export type CheckStatus = "ok" | "warn" | "error"
+export type CheckStatus = 'ok' | 'warn' | 'error'
 
 export interface DoctorCheck {
   name: string
@@ -12,10 +12,10 @@ export interface DoctorReport {
 }
 
 export interface CliIo {
-  stdout: Pick<NodeJS.WriteStream, "write">
-  stderr: Pick<NodeJS.WriteStream, "write">
+  stdout: Pick<NodeJS.WriteStream, 'write'>
+  stderr: Pick<NodeJS.WriteStream, 'write'>
 }
 
 export function createTextBlock(lines: string[]): string {
-  return `${lines.join("\n")}\n`
+  return `${lines.join('\n')}\n`
 }

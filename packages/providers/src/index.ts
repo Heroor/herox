@@ -4,7 +4,7 @@ export interface ProviderPreset {
   baseUrl: string
   apiKeyEnv?: string
   defaultModel: string
-  compatibility: "openai-chat-completions" | "partial"
+  compatibility: 'openai-chat-completions' | 'partial'
 }
 
 export interface ProviderConfigInput {
@@ -39,10 +39,10 @@ export interface ProviderConnection {
   apiKey?: string
   apiKeyEnv?: string
   headers?: Record<string, string>
-  compatibility: ProviderPreset["compatibility"]
+  compatibility: ProviderPreset['compatibility']
 }
 
-export type ChatRole = "system" | "user" | "assistant" | "tool"
+export type ChatRole = 'system' | 'user' | 'assistant' | 'tool'
 
 export interface ChatMessage {
   role: ChatRole
@@ -67,7 +67,7 @@ export interface ChatCompletionResult {
 export type ChatCompletionStream = AsyncIterable<string>
 
 export interface ProviderTestResult {
-  status: "ok" | "error"
+  status: 'ok' | 'error'
   message: string
 }
 
@@ -83,7 +83,7 @@ export interface FetchResponseLike {
 export type FetchLike = (
   url: string,
   init: {
-    method: "POST"
+    method: 'POST'
     headers: Record<string, string>
     body: string
     signal?: AbortSignal
@@ -91,12 +91,12 @@ export type FetchLike = (
 ) => Promise<FetchResponseLike>
 
 export type ProviderErrorKind =
-  | "auth_failed"
-  | "context_length_exceeded"
-  | "model_not_found"
-  | "network_failed"
-  | "rate_limited"
-  | "unknown"
+  | 'auth_failed'
+  | 'context_length_exceeded'
+  | 'model_not_found'
+  | 'network_failed'
+  | 'rate_limited'
+  | 'unknown'
 
 export class ProviderError extends Error {
   readonly status?: number
@@ -114,69 +114,69 @@ export class ProviderError extends Error {
     } = {},
   ) {
     super(message)
-    this.name = "ProviderError"
+    this.name = 'ProviderError'
     this.status = options.status
     this.code = options.code
-    this.kind = options.kind ?? "unknown"
+    this.kind = options.kind ?? 'unknown'
     this.type = options.type
   }
 }
 
 export const providerPresets: ProviderPreset[] = [
   {
-    name: "openai",
-    displayName: "OpenAI",
-    baseUrl: "https://api.openai.com/v1",
-    apiKeyEnv: "OPENAI_API_KEY",
-    defaultModel: "gpt-5.5",
-    compatibility: "openai-chat-completions",
+    name: 'openai',
+    displayName: 'OpenAI',
+    baseUrl: 'https://api.openai.com/v1',
+    apiKeyEnv: 'OPENAI_API_KEY',
+    defaultModel: 'gpt-5.5',
+    compatibility: 'openai-chat-completions',
   },
   {
-    name: "deepseek",
-    displayName: "DeepSeek",
-    baseUrl: "https://api.deepseek.com",
-    apiKeyEnv: "DEEPSEEK_API_KEY",
-    defaultModel: "deepseek-v4-pro",
-    compatibility: "openai-chat-completions",
+    name: 'deepseek',
+    displayName: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com',
+    apiKeyEnv: 'DEEPSEEK_API_KEY',
+    defaultModel: 'deepseek-v4-pro',
+    compatibility: 'openai-chat-completions',
   },
   {
-    name: "qwen",
-    displayName: "Qwen",
-    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    apiKeyEnv: "QWEN_API_KEY",
-    defaultModel: "qwen-plus",
-    compatibility: "openai-chat-completions",
+    name: 'qwen',
+    displayName: 'Qwen',
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    apiKeyEnv: 'QWEN_API_KEY',
+    defaultModel: 'qwen-plus',
+    compatibility: 'openai-chat-completions',
   },
   {
-    name: "moonshot",
-    displayName: "Moonshot",
-    baseUrl: "https://api.moonshot.cn/v1",
-    apiKeyEnv: "MOONSHOT_API_KEY",
-    defaultModel: "moonshot-v1-8k",
-    compatibility: "openai-chat-completions",
+    name: 'moonshot',
+    displayName: 'Moonshot',
+    baseUrl: 'https://api.moonshot.cn/v1',
+    apiKeyEnv: 'MOONSHOT_API_KEY',
+    defaultModel: 'moonshot-v1-8k',
+    compatibility: 'openai-chat-completions',
   },
   {
-    name: "mimo",
-    displayName: "Mimo",
-    baseUrl: "https://api.xiaomimimo.com/v1",
-    apiKeyEnv: "MIMO_API_KEY",
-    defaultModel: "mimo-v2.5",
-    compatibility: "openai-chat-completions",
+    name: 'mimo',
+    displayName: 'Mimo',
+    baseUrl: 'https://api.xiaomimimo.com/v1',
+    apiKeyEnv: 'MIMO_API_KEY',
+    defaultModel: 'mimo-v2.5',
+    compatibility: 'openai-chat-completions',
   },
   {
-    name: "openrouter",
-    displayName: "OpenRouter",
-    baseUrl: "https://openrouter.ai/api/v1",
-    apiKeyEnv: "OPENROUTER_API_KEY",
-    defaultModel: "deepseek/deepseek-v4-flash:free",
-    compatibility: "openai-chat-completions",
+    name: 'openrouter',
+    displayName: 'OpenRouter',
+    baseUrl: 'https://openrouter.ai/api/v1',
+    apiKeyEnv: 'OPENROUTER_API_KEY',
+    defaultModel: 'deepseek/deepseek-v4-flash:free',
+    compatibility: 'openai-chat-completions',
   },
   {
-    name: "ollama",
-    displayName: "Ollama",
-    baseUrl: "http://localhost:11434/v1",
-    defaultModel: "llama3.1",
-    compatibility: "partial",
+    name: 'ollama',
+    displayName: 'Ollama',
+    baseUrl: 'http://localhost:11434/v1',
+    defaultModel: 'llama3.1',
+    compatibility: 'partial',
   },
 ]
 
@@ -195,7 +195,7 @@ export function resolveProviderConnection(options: {
 }): ProviderConnection {
   const config = options.config ?? {}
   const env = options.env ?? process.env
-  const providerName = options.providerName ?? config.model?.provider ?? "openai"
+  const providerName = options.providerName ?? config.model?.provider ?? 'openai'
   const preset = getProviderPreset(providerName)
   const override = config.providers?.[providerName]
 
@@ -230,7 +230,7 @@ export function resolveProviderConnection(options: {
     apiKey,
     apiKeyEnv,
     headers: override?.headers,
-    compatibility: preset?.compatibility ?? "partial",
+    compatibility: preset?.compatibility ?? 'partial',
   }
 }
 
@@ -258,7 +258,7 @@ export async function testProviderConnection(
 ): Promise<ProviderTestResult> {
   if (connection.apiKeyEnv !== undefined && connection.apiKey === undefined) {
     return {
-      status: "error",
+      status: 'error',
       message: `Missing API key. Set ${connection.apiKeyEnv} and retry.`,
     }
   }
@@ -267,7 +267,7 @@ export async function testProviderConnection(
     const result = await createChatCompletion(
       connection,
       {
-        messages: [{ role: "user", content: "Reply with OK." }],
+        messages: [{ role: 'user', content: 'Reply with OK.' }],
         temperature: connection.temperature ?? 0,
         maxOutputTokens: connection.maxOutputTokens ?? 8,
       },
@@ -275,14 +275,14 @@ export async function testProviderConnection(
     )
 
     return {
-      status: "ok",
+      status: 'ok',
       message:
-        result.content.length > 0 ? `Model responded: ${result.content}` : "Model responded.",
+        result.content.length > 0 ? `Model responded: ${result.content}` : 'Model responded.',
     }
   } catch (error) {
     return {
-      status: "error",
-      message: error instanceof Error ? error.message : "Provider test failed.",
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Provider test failed.',
     }
   }
 }
@@ -299,14 +299,14 @@ export async function* createChatCompletionStream(
   }
 
   if (response.body === undefined || response.body === null) {
-    throw new ProviderError("Streaming response did not include a readable body.", {
-      kind: "network_failed",
+    throw new ProviderError('Streaming response did not include a readable body.', {
+      kind: 'network_failed',
       status: response.status,
     })
   }
 
   for await (const data of readSseDataFromBody(response.body)) {
-    if (data === "[DONE]") {
+    if (data === '[DONE]') {
       return
     }
 
@@ -319,13 +319,13 @@ export async function* createChatCompletionStream(
 
 export function extractStreamContent(streamText: string): string[] {
   return parseSseDataLines(streamText).flatMap((data) => {
-    if (data === "[DONE]") {
+    if (data === '[DONE]') {
       return []
     }
 
     try {
       const parsed: unknown = JSON.parse(data)
-      const content = readNestedString(parsed, ["choices", "0", "delta", "content"])
+      const content = readNestedString(parsed, ['choices', '0', 'delta', 'content'])
       return content === undefined ? [] : [content]
     } catch {
       return []
@@ -340,8 +340,8 @@ async function postChatCompletion(
   fetchLike: FetchLike,
 ): Promise<FetchResponseLike> {
   try {
-    return await fetchLike(joinUrl(connection.baseUrl, "chat/completions"), {
-      method: "POST",
+    return await fetchLike(joinUrl(connection.baseUrl, 'chat/completions'), {
+      method: 'POST',
       headers: buildHeaders(connection),
       body: JSON.stringify({
         model: options.model ?? connection.model,
@@ -358,7 +358,7 @@ async function postChatCompletion(
     }
 
     throw new ProviderError(formatNetworkErrorMessage(error), {
-      kind: "network_failed",
+      kind: 'network_failed',
     })
   }
 }
@@ -366,7 +366,7 @@ async function postChatCompletion(
 async function* readSseDataFromBody(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
   const reader = body.getReader()
   const decoder = new TextDecoder()
-  let buffer = ""
+  let buffer = ''
 
   try {
     while (true) {
@@ -375,9 +375,9 @@ async function* readSseDataFromBody(body: ReadableStream<Uint8Array>): AsyncGene
 
       // SSE events are delimited by blank lines; keeping the final partial
       // event in buffer lets us handle JSON split across network chunks.
-      const normalized = buffer.replace(/\r\n/g, "\n")
-      const events = normalized.split("\n\n")
-      buffer = events.pop() ?? ""
+      const normalized = buffer.replace(/\r\n/g, '\n')
+      const events = normalized.split('\n\n')
+      buffer = events.pop() ?? ''
 
       for (const event of events) {
         yield* parseSseDataLines(`${event}\n\n`)
@@ -399,7 +399,7 @@ async function* readSseDataFromBody(body: ReadableStream<Uint8Array>): AsyncGene
 function extractDeltaContent(data: string): string | undefined {
   try {
     const parsed: unknown = JSON.parse(data)
-    return readNestedString(parsed, ["choices", "0", "delta", "content"])
+    return readNestedString(parsed, ['choices', '0', 'delta', 'content'])
   } catch {
     return undefined
   }
@@ -412,19 +412,19 @@ function parseSseDataLines(streamText: string): string[] {
   for (const line of streamText.split(/\r?\n/)) {
     if (line.length === 0) {
       if (current.length > 0) {
-        events.push(current.join("\n"))
+        events.push(current.join('\n'))
         current = []
       }
       continue
     }
 
-    if (line.startsWith("data:")) {
-      current.push(line.slice("data:".length).trimStart())
+    if (line.startsWith('data:')) {
+      current.push(line.slice('data:'.length).trimStart())
     }
   }
 
   if (current.length > 0) {
-    events.push(current.join("\n"))
+    events.push(current.join('\n'))
   }
 
   return events
@@ -432,7 +432,7 @@ function parseSseDataLines(streamText: string): string[] {
 
 function buildHeaders(connection: ProviderConnection): Record<string, string> {
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
     ...(connection.headers ?? {}),
   }
 
@@ -444,7 +444,7 @@ function buildHeaders(connection: ProviderConnection): Record<string, string> {
 }
 
 function extractAssistantContent(raw: unknown): string {
-  return readNestedString(raw, ["choices", "0", "message", "content"]) ?? ""
+  return readNestedString(raw, ['choices', '0', 'message', 'content']) ?? ''
 }
 
 function readNestedString(value: unknown, path: string[]): string | undefined {
@@ -463,7 +463,7 @@ function readNestedString(value: unknown, path: string[]): string | undefined {
     current = current[key]
   }
 
-  return typeof current === "string" ? current : undefined
+  return typeof current === 'string' ? current : undefined
 }
 
 async function providerErrorFromResponse(response: FetchResponseLike): Promise<ProviderError> {
@@ -474,14 +474,14 @@ async function providerErrorFromResponse(response: FetchResponseLike): Promise<P
 
   return new ProviderError(message, {
     status: response.status,
-    code: readOptionalString(error, "code"),
+    code: readOptionalString(error, 'code'),
     kind: classifyProviderError(response.status, error, message),
-    type: readOptionalString(error, "type"),
+    type: readOptionalString(error, 'type'),
   })
 }
 
 function readErrorMessage(error: Record<string, unknown> | undefined): string | undefined {
-  return readOptionalString(error, "message")
+  return readOptionalString(error, 'message')
 }
 
 function readOptionalString(
@@ -489,7 +489,7 @@ function readOptionalString(
   key: string,
 ): string | undefined {
   const entry = value?.[key]
-  return typeof entry === "string" ? entry : undefined
+  return typeof entry === 'string' ? entry : undefined
 }
 
 function parseJson(text: string): unknown {
@@ -505,48 +505,48 @@ function classifyProviderError(
   error: Record<string, unknown> | undefined,
   message: string,
 ): ProviderErrorKind {
-  const combined = [readOptionalString(error, "code"), readOptionalString(error, "type"), message]
+  const combined = [readOptionalString(error, 'code'), readOptionalString(error, 'type'), message]
     .filter((entry) => entry !== undefined)
-    .join(" ")
+    .join(' ')
     .toLowerCase()
 
   if (status === 401 || status === 403) {
-    return "auth_failed"
+    return 'auth_failed'
   }
 
   if (status === 429) {
-    return "rate_limited"
+    return 'rate_limited'
   }
 
   if (
-    combined.includes("context_length") ||
-    combined.includes("context length") ||
-    combined.includes("context window") ||
-    combined.includes("maximum context") ||
-    combined.includes("too many tokens")
+    combined.includes('context_length') ||
+    combined.includes('context length') ||
+    combined.includes('context window') ||
+    combined.includes('maximum context') ||
+    combined.includes('too many tokens')
   ) {
-    return "context_length_exceeded"
+    return 'context_length_exceeded'
   }
 
   if (
-    combined.includes("model_not_found") ||
-    combined.includes("model not found") ||
-    combined.includes("does not exist") ||
-    (status === 404 && combined.includes("model"))
+    combined.includes('model_not_found') ||
+    combined.includes('model not found') ||
+    combined.includes('does not exist') ||
+    (status === 404 && combined.includes('model'))
   ) {
-    return "model_not_found"
+    return 'model_not_found'
   }
 
-  return "unknown"
+  return 'unknown'
 }
 
 function formatNetworkErrorMessage(error: unknown): string {
-  const detail = error instanceof Error ? error.message : "Unknown network error."
+  const detail = error instanceof Error ? error.message : 'Unknown network error.'
   return `Network request failed: ${detail}`
 }
 
 function joinUrl(baseUrl: string, path: string): string {
-  return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`
+  return `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
 }
 
 async function defaultFetch(
@@ -557,5 +557,5 @@ async function defaultFetch(
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

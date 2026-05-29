@@ -1,6 +1,6 @@
-import { existsSync, readFileSync } from "node:fs"
-import { homedir } from "node:os"
-import { dirname, join, parse } from "node:path"
+import { existsSync, readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { dirname, join, parse } from 'node:path'
 
 export interface HeroxModelConfig {
   provider?: string
@@ -48,11 +48,11 @@ export interface LoadedHeroxConfig {
 
 const defaultConfig: HeroxConfig = {
   model: {
-    provider: "openai",
+    provider: 'openai',
   },
   providers: {
     openai: {
-      apiKeyEnv: "OPENAI_API_KEY",
+      apiKeyEnv: 'OPENAI_API_KEY',
     },
   },
   env: {},
@@ -63,9 +63,9 @@ export function loadHeroxConfig(options: LoadHeroxConfigOptions = {}): LoadedHer
   const env = options.env ?? process.env
   const workspaceRoot = findWorkspaceRoot(cwd)
   const sourcePaths = [
-    { label: "user", path: join(options.homeDir ?? homedir(), ".herox", "settings.json") },
-    { label: "project", path: join(workspaceRoot, ".herox", "settings.json") },
-    { label: "local", path: join(workspaceRoot, ".herox", "settings.local.json") },
+    { label: 'user', path: join(options.homeDir ?? homedir(), '.herox', 'settings.json') },
+    { label: 'project', path: join(workspaceRoot, '.herox', 'settings.json') },
+    { label: 'local', path: join(workspaceRoot, '.herox', 'settings.local.json') },
   ]
 
   let config = cloneConfig(defaultConfig)
@@ -93,7 +93,7 @@ export function getConfigValue(config: HeroxConfig, path?: string): unknown {
     return config
   }
 
-  return path.split(".").reduce<unknown>((current, key) => {
+  return path.split('.').reduce<unknown>((current, key) => {
     if (!isRecord(current)) {
       return undefined
     }
@@ -135,10 +135,10 @@ function readConfigSource(
   }
 
   try {
-    const parsed: unknown = JSON.parse(readFileSync(path, "utf8"))
+    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
     if (!isRecord(parsed)) {
       return {
-        source: { label, path, exists: true, error: "Config file must contain a JSON object." },
+        source: { label, path, exists: true, error: 'Config file must contain a JSON object.' },
       }
     }
 
@@ -152,7 +152,7 @@ function readConfigSource(
         label,
         path,
         exists: true,
-        error: error instanceof Error ? error.message : "Unknown config parse error.",
+        error: error instanceof Error ? error.message : 'Unknown config parse error.',
       },
     }
   }
@@ -164,9 +164,9 @@ function findWorkspaceRoot(cwd: string): string {
 
   while (current !== root) {
     if (
-      existsSync(join(current, ".git")) ||
-      existsSync(join(current, ".herox")) ||
-      existsSync(join(current, "HEROX.md"))
+      existsSync(join(current, '.git')) ||
+      existsSync(join(current, '.herox')) ||
+      existsSync(join(current, 'HEROX.md'))
     ) {
       return current
     }
@@ -212,7 +212,7 @@ function cloneConfig(config: HeroxConfig): HeroxConfig {
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {
-  return isRecord(value) && Object.values(value).every((entry) => typeof entry === "string")
+  return isRecord(value) && Object.values(value).every((entry) => typeof entry === 'string')
 }
 
 function stripUndefined<T extends Record<string, unknown>>(value: T): Partial<T> {
@@ -222,5 +222,5 @@ function stripUndefined<T extends Record<string, unknown>>(value: T): Partial<T>
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
