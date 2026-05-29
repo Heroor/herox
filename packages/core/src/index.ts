@@ -16,9 +16,12 @@ export {
   type LoadHeroxConfigOptions,
 } from './config.js'
 export {
+  buildConversationMessages,
   buildRunMessages,
   loadHeroxInstructions,
+  type BuildConversationMessagesOptions,
   type BuildRunMessagesOptions,
+  type ConversationTurn,
   type InstructionSource,
   type LoadedHeroxInstructions,
   type LoadHeroxInstructionsOptions,

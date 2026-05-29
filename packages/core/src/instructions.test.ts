@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { buildRunMessages, loadHeroxInstructions } from './instructions.js'
+import {
+  buildConversationMessages,
+  buildRunMessages,
+  loadHeroxInstructions,
+} from './instructions.js'
 
 describe('loadHeroxInstructions', () => {
   it('loads user and project HEROX.md files', () => {
@@ -43,5 +47,28 @@ describe('buildRunMessages', () => {
       role: 'user',
       content: 'Fix the failing test.',
     })
+  })
+})
+
+describe('buildConversationMessages', () => {
+  it('includes system instructions, prior turns, and the next user message', () => {
+    const messages = buildConversationMessages({
+      instructions: 'Run tests before finishing.',
+      history: [
+        { role: 'user', content: 'Hello' },
+        { role: 'assistant', content: 'Hi' },
+      ],
+      nextUserMessage: 'Fix the failing test.',
+    })
+
+    expect(messages).toEqual([
+      expect.objectContaining({
+        role: 'system',
+        content: expect.stringContaining('Run tests before finishing.'),
+      }),
+      { role: 'user', content: 'Hello' },
+      { role: 'assistant', content: 'Hi' },
+      { role: 'user', content: 'Fix the failing test.' },
+    ])
   })
 })

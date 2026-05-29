@@ -23,6 +23,35 @@ describe('runCli', () => {
     expect(output.join('')).toContain('Usage: herox')
   })
 
+  it('starts an interactive session and handles slash commands without provider calls', async () => {
+    vi.stubGlobal('fetch', async () => {
+      throw new Error('slash commands should not call the provider')
+    })
+
+    const output: string[] = []
+    const code = await runCli(
+      [],
+      {
+        stdout: { write: (chunk) => append(output, chunk) },
+        stderr: { write: (chunk) => append(output, chunk) },
+      },
+      {
+        env: {},
+        cwd: '/tmp/herox-missing',
+        homeDir: '/tmp/herox-missing-home',
+        input: ['/help', '/model', '/status', '/exit'],
+      },
+    )
+
+    console.log(output)
+    expect(code).toBe(0)
+    expect(output.join('')).toContain('Herox')
+    expect(output.join('')).toContain('Interactive commands')
+    expect(output.join('')).toContain('Active model')
+    expect(output.join('')).toContain('Session status')
+    expect(output.join('')).toContain('Bye.')
+  })
+
   it('prints version', async () => {
     const output: string[] = []
     const code = await runCli(['--version'], {
@@ -293,6 +322,116 @@ describe('runCli', () => {
         }),
       ]),
     )
+  })
+
+  it('streams interactive replies and sends conversation history', async () => {
+    const root = join(tmpdir(), `herox-cli-${randomUUID()}`)
+    mkdirSync(root, { recursive: true })
+    writeFileSync(join(root, 'HEROX.md'), 'Keep answers short.')
+
+    const calls: Array<{ body: Record<string, unknown> }> = []
+    vi.stubGlobal('fetch', async (_url: string, init: { body?: string }) => {
+      const reply = `Reply ${calls.length + 1}`
+      calls.push({ body: JSON.parse(String(init.body)) as Record<string, unknown> })
+      return streamResponse([
+        `data: {"choices":[{"delta":{"content":"${reply}"}}]}\n\n`,
+        'data: [DONE]\n\n',
+      ])
+    })
+
+    const output: string[] = []
+    const code = await runCli(
+      [],
+      {
+        stdout: { write: (chunk) => append(output, chunk) },
+        stderr: { write: (chunk) => append(output, chunk) },
+      },
+      {
+        env: { OPENAI_API_KEY: 'secret' },
+        cwd: root,
+        homeDir: join(root, 'home'),
+        input: ['first', 'second', '/exit'],
+      },
+    )
+
+    expect(code).toBe(0)
+    expect(output.join('')).toContain('>> Reply 1')
+    expect(output.join('')).toContain('>> Reply 2')
+    expect(calls).toHaveLength(2)
+    expect(calls[0]?.body).toMatchObject({ stream: true })
+    expect(calls[0]?.body.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'system',
+          content: expect.stringContaining('Keep answers short.'),
+        }),
+        { role: 'user', content: 'first' },
+      ]),
+    )
+    expect(calls[1]?.body.messages).toEqual(
+      expect.arrayContaining([
+        { role: 'user', content: 'first' },
+        { role: 'assistant', content: 'Reply 1' },
+        { role: 'user', content: 'second' },
+      ]),
+    )
+  })
+
+  it('exits normally when Ctrl+C interrupts an active interactive reply', async () => {
+    vi.stubGlobal('fetch', async (_url: string, init: { signal?: AbortSignal }) => {
+      return await new Promise((_resolve, reject) => {
+        init.signal?.addEventListener(
+          'abort',
+          () => reject(new DOMException('This operation was aborted.', 'AbortError')),
+          { once: true },
+        )
+        queueMicrotask(() => process.emit('SIGINT'))
+      })
+    })
+
+    const output: string[] = []
+    const code = await runCli(
+      [],
+      {
+        stdout: { write: (chunk) => append(output, chunk) },
+        stderr: { write: (chunk) => append(output, chunk) },
+      },
+      {
+        env: { OPENAI_API_KEY: 'secret' },
+        cwd: '/tmp/herox-missing',
+        homeDir: '/tmp/herox-missing-home',
+        input: ['hello'],
+      },
+    )
+
+    expect(code).toBe(0)
+    expect(output.join('')).not.toContain('network_failed')
+    expect(output.join('')).not.toContain('AbortError')
+  })
+
+  it('does not call the provider for interactive input when the API key is missing', async () => {
+    vi.stubGlobal('fetch', async () => {
+      throw new Error('missing API key should stop provider calls')
+    })
+
+    const output: string[] = []
+    const code = await runCli(
+      [],
+      {
+        stdout: { write: (chunk) => append(output, chunk) },
+        stderr: { write: (chunk) => append(output, chunk) },
+      },
+      {
+        env: {},
+        cwd: '/tmp/herox-missing',
+        homeDir: '/tmp/herox-missing-home',
+        input: ['hello', '/exit'],
+      },
+    )
+
+    expect(code).toBe(1)
+    expect(output.join('')).toContain('Missing API key. Set OPENAI_API_KEY')
+    expect(output.join('')).toContain('Bye.')
   })
 
   it('does not run a one-shot task when the API key is missing', async () => {

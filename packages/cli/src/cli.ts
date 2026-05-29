@@ -1,4 +1,5 @@
 import {
+  buildConversationMessages,
   buildDoctorReport,
   buildRunMessages,
   formatDoctorReport,
@@ -7,22 +8,31 @@ import {
   loadHeroxInstructions,
   loadHeroxConfig,
 } from '@heroor/x-core'
+import type { ConversationTurn, LoadedHeroxInstructions, LoadedHeroxConfig } from '@heroor/x-core'
 import {
   createChatCompletionStream,
   listProviderPresets,
   ProviderError,
+  type ProviderConnection,
   resolveProviderConnection,
   testProviderConnection,
 } from '@heroor/x-providers'
 import type { CliIo } from '@heroor/x-shared'
 import { createTextBlock } from '@heroor/x-shared'
 import { readFileSync } from 'node:fs'
+import { createInterface } from 'node:readline'
+
+export type InteractiveInput = Iterable<string> | AsyncIterable<string>
 
 export interface RunCliOptions {
   cwd?: string
   env?: NodeJS.ProcessEnv
   homeDir?: string
+  input?: InteractiveInput
 }
+
+type CliRuntime = Required<Pick<RunCliOptions, 'cwd' | 'env'>> &
+  Pick<RunCliOptions, 'homeDir' | 'input'>
 
 const helpText = createTextBlock([
   'Herox Agent CLI',
@@ -30,6 +40,7 @@ const helpText = createTextBlock([
   'Usage: herox [command] [options]',
   '',
   'Commands:',
+  '  (no command)               Start an interactive session',
   '  config get [path]          Print effective config or a dot-path value',
   '  config paths               Print config source paths',
   '  doctor                     Check local Herox runtime readiness',
@@ -44,6 +55,38 @@ const helpText = createTextBlock([
   '  -v, --version              Show version',
 ])
 
+const interactiveHelpText = createTextBlock([
+  'Interactive commands',
+  '',
+  '  /help                      Show interactive commands',
+  '  /model                     Show the active provider and model',
+  '  /status                    Show workspace and conversation status',
+  '  /exit                      Exit the session',
+  '',
+])
+
+const ansi = {
+  brand: '\x1b[38;2;200;160;255m',
+  cyan: '\x1b[38;2;160;255;255m',
+  orange: '\x1b[38;2;255;190;130m',
+  dim: '\x1b[2m',
+  error: '\x1b[31;1m',
+  success: '\x1b[32;1m',
+  warn: '\x1b[33;1m]',
+  reset: '\x1b[0m',
+}
+
+interface InteractiveInputState {
+  interrupted: boolean
+}
+
+class InteractiveInterruptError extends Error {
+  constructor() {
+    super('Interactive session interrupted.')
+    this.name = 'InteractiveInterruptError'
+  }
+}
+
 export async function runCli(
   args: string[] = process.argv.slice(2),
   io: CliIo = { stdout: process.stdout, stderr: process.stderr },
@@ -55,9 +98,14 @@ export async function runCli(
     cwd: options.cwd ?? process.cwd(),
     env: options.env ?? process.env,
     homeDir: options.homeDir,
+    input: options.input,
   }
 
-  if (command === undefined || command === '-h' || command === '--help' || command === 'help') {
+  if (command === undefined) {
+    return handleInteractiveCommand(io, runtime)
+  }
+
+  if (command === '-h' || command === '--help' || command === 'help') {
     io.stdout.write(helpText)
     return 0
   }
@@ -102,11 +150,7 @@ export async function runCli(
   return 1
 }
 
-function handleConfigCommand(
-  args: string[],
-  io: CliIo,
-  runtime: Required<Pick<RunCliOptions, 'cwd' | 'env'>> & Pick<RunCliOptions, 'homeDir'>,
-): number {
+function handleConfigCommand(args: string[], io: CliIo, runtime: CliRuntime): number {
   const [subcommand, key] = args
   const loaded = loadHeroxConfig(runtime)
 
@@ -134,11 +178,7 @@ function handleConfigCommand(
   return 1
 }
 
-function handleInitCommand(
-  args: string[],
-  io: CliIo,
-  runtime: Required<Pick<RunCliOptions, 'cwd' | 'env'>> & Pick<RunCliOptions, 'homeDir'>,
-): number {
+function handleInitCommand(args: string[], io: CliIo, runtime: CliRuntime): number {
   const parsed = parseInitArgs(args)
   if (parsed.error !== undefined) {
     io.stderr.write(`${parsed.error}\n`)
@@ -164,7 +204,7 @@ function handleInitCommand(
 async function handleProviderCommand(
   args: string[],
   io: CliIo,
-  runtime: Required<Pick<RunCliOptions, 'cwd' | 'env'>> & Pick<RunCliOptions, 'homeDir'>,
+  runtime: CliRuntime,
 ): Promise<number> {
   const [subcommand, providerName] = args
 
@@ -197,11 +237,7 @@ async function handleProviderCommand(
   return 1
 }
 
-async function handleRunCommand(
-  args: string[],
-  io: CliIo,
-  runtime: Required<Pick<RunCliOptions, 'cwd' | 'env'>> & Pick<RunCliOptions, 'homeDir'>,
-): Promise<number> {
+async function handleRunCommand(args: string[], io: CliIo, runtime: CliRuntime): Promise<number> {
   const task = args.join(' ').trim()
   if (task.length === 0) {
     io.stderr.write('Usage: herox run <task>\n')
@@ -241,6 +277,83 @@ async function handleRunCommand(
   }
 }
 
+async function handleInteractiveCommand(io: CliIo, runtime: CliRuntime): Promise<number> {
+  const loaded = loadHeroxConfig(runtime)
+  const instructions = loadHeroxInstructions({
+    workspaceRoot: loaded.workspaceRoot,
+    homeDir: runtime.homeDir,
+  })
+
+  let connection: ProviderConnection
+  try {
+    connection = resolveProviderConnection({
+      config: loaded.config,
+      env: mergeProviderEnv(loaded.config.env, runtime.env),
+    })
+  } catch (error) {
+    io.stderr.write(`${error instanceof Error ? error.message : 'Session setup failed.'}\n`)
+    return 1
+  }
+
+  const history: ConversationTurn[] = []
+  const inputState: InteractiveInputState = { interrupted: false }
+  let exitCode = 0
+
+  io.stdout.write(formatInteractiveBanner(loaded, connection))
+
+  for await (const rawLine of readInteractiveInput(runtime.input, io, inputState)) {
+    const message = rawLine.trim()
+    if (message.length === 0) {
+      continue
+    }
+
+    if (message.startsWith('/')) {
+      const slashResult = handleInteractiveSlashCommand(message, {
+        connection,
+        history,
+        instructions,
+        loaded,
+      })
+      if (slashResult.output.length > 0) {
+        io.stdout.write(slashResult.output)
+      }
+      if (slashResult.exit) {
+        return exitCode
+      }
+      continue
+    }
+
+    if (connection.apiKeyEnv !== undefined && connection.apiKey === undefined) {
+      io.stderr.write(`Missing API key. Set ${connection.apiKeyEnv} and retry.\n`)
+      exitCode = 1
+      continue
+    }
+
+    try {
+      const assistantContent = await streamInteractiveReply({
+        connection,
+        history,
+        instructions: instructions.content,
+        io,
+        message,
+      })
+      history.push(
+        { role: 'user', content: message },
+        { role: 'assistant', content: assistantContent },
+      )
+    } catch (error) {
+      if (error instanceof InteractiveInterruptError) {
+        return 0
+      }
+
+      io.stderr.write(formatRunError(error))
+      exitCode = 1
+    }
+  }
+
+  return inputState.interrupted ? 0 : exitCode
+}
+
 function mergeProviderEnv(
   configEnv: Record<string, string>,
   runtimeEnv: NodeJS.ProcessEnv,
@@ -264,6 +377,64 @@ function formatProviderList(): string {
   return createTextBlock(lines)
 }
 
+function formatInteractiveBanner(
+  loaded: LoadedHeroxConfig,
+  connection: ProviderConnection,
+): string {
+  const heroVersion = colorize(`Herox v${readPackageVersion()}`, ansi.brand)
+  const modelInfo = colorize(`${connection.model}(${connection.baseUrl})`, ansi.orange)
+  return createTextBlock([
+    `${heroVersion} · ${modelInfo}`,
+    loaded.workspaceRoot,
+    colorize(`Type /help for commands, '/exit' to quit.`, ansi.dim),
+    '',
+  ])
+}
+
+function formatModelStatus(connection: ProviderConnection): string {
+  return createTextBlock([
+    'Active model',
+    '',
+    `Provider: ${connection.provider}`,
+    `Model: ${connection.model}`,
+    `Base URL: ${connection.baseUrl}`,
+    `Compatibility: ${connection.compatibility}`,
+    `API key: ${formatApiKeyStatus(connection)}`,
+    '',
+  ])
+}
+
+function formatApiKeyStatus(connection: ProviderConnection): string {
+  if (connection.apiKeyEnv === undefined) {
+    return connection.apiKey === undefined ? 'not required' : 'configured'
+  }
+
+  return connection.apiKey === undefined
+    ? `missing ${connection.apiKeyEnv}`
+    : `available via ${connection.apiKeyEnv}`
+}
+
+function formatInteractiveStatus(options: {
+  connection: ProviderConnection
+  history: ConversationTurn[]
+  instructions: LoadedHeroxInstructions
+  loaded: LoadedHeroxConfig
+}): string {
+  const instructionCount = options.instructions.sources.filter(
+    (source) => source.exists && source.error === undefined,
+  ).length
+
+  return createTextBlock([
+    'Session status',
+    '',
+    `Workspace: ${options.loaded.workspaceRoot}`,
+    `Model: ${options.connection.provider}(${options.connection.model})`,
+    `Turns: ${Math.floor(options.history.length / 2)}`,
+    `Messages: ${options.history.length}`,
+    `Instruction sources: ${instructionCount}`,
+  ])
+}
+
 function formatInitResult(result: ReturnType<typeof initHeroxProject>): string {
   return createTextBlock([
     `Initialized Herox project at ${result.workspaceRoot}`,
@@ -281,6 +452,132 @@ function formatRunError(error: unknown): string {
   }
 
   return `${error instanceof Error ? error.message : 'Run failed.'}\n`
+}
+
+async function streamInteractiveReply(options: {
+  connection: ProviderConnection
+  history: ConversationTurn[]
+  instructions: string
+  io: CliIo
+  message: string
+}): Promise<string> {
+  const abortController = new AbortController()
+  const interruptHandler = installRequestInterruptHandler(abortController)
+  let content = ''
+
+  // TODO: Need loading
+  options.io.stdout.write('>> ')
+
+  try {
+    for await (const delta of createChatCompletionStream(options.connection, {
+      messages: buildConversationMessages({
+        history: options.history,
+        instructions: options.instructions,
+        nextUserMessage: options.message,
+      }),
+      signal: abortController.signal,
+    })) {
+      content += delta
+      options.io.stdout.write(delta)
+    }
+  } catch (error) {
+    if (interruptHandler.wasInterrupted()) {
+      throw new InteractiveInterruptError()
+    }
+
+    throw error
+  } finally {
+    interruptHandler.stop()
+    options.io.stdout.write('\n\n')
+  }
+
+  return content
+}
+
+function handleInteractiveSlashCommand(
+  command: string,
+  context: {
+    connection: ProviderConnection
+    history: ConversationTurn[]
+    instructions: LoadedHeroxInstructions
+    loaded: LoadedHeroxConfig
+  },
+): { exit: boolean; output: string } {
+  const [name] = command.split(/\s+/, 1)
+
+  if (name === '/help') {
+    return { exit: false, output: interactiveHelpText }
+  }
+
+  if (name === '/model') {
+    return { exit: false, output: formatModelStatus(context.connection) }
+  }
+
+  if (name === '/status') {
+    return { exit: false, output: formatInteractiveStatus(context) }
+  }
+
+  if (name === '/exit') {
+    return { exit: true, output: 'Bye.\n' }
+  }
+
+  return { exit: false, output: `Unknown slash command: ${command}\n` }
+}
+
+async function* readInteractiveInput(
+  input: InteractiveInput | undefined,
+  io: CliIo,
+  state: InteractiveInputState,
+): AsyncGenerator<string> {
+  if (input !== undefined) {
+    for await (const line of input) {
+      yield String(line)
+    }
+    return
+  }
+
+  const readline = createInterface({
+    input: process.stdin,
+    crlfDelay: Infinity,
+  })
+  const onInterrupt = (): void => {
+    state.interrupted = true
+    io.stdout.write('\n')
+    readline.close()
+  }
+
+  try {
+    readline.on('SIGINT', onInterrupt)
+    io.stdout.write('> ')
+    for await (const line of readline) {
+      yield line
+      io.stdout.write('> ')
+    }
+  } finally {
+    readline.off('SIGINT', onInterrupt)
+    readline.close()
+  }
+}
+
+function installRequestInterruptHandler(abortController: AbortController): {
+  stop: () => void
+  wasInterrupted: () => boolean
+} {
+  let interrupted = false
+  const onInterrupt = (): void => {
+    interrupted = true
+    abortController.abort()
+  }
+
+  // SIGINT should cancel only the active model request; the surrounding
+  // interactive loop remains responsible for deciding whether to keep running.
+  process.once('SIGINT', onInterrupt)
+  return {
+    stop: () => {
+      process.off('SIGINT', onInterrupt)
+    },
+    wasInterrupted: () => interrupted,
+  }
 }
 
 function redactConfigValue(value: unknown, path?: string): unknown {
@@ -372,4 +669,8 @@ function readPackageVersion(): string {
 
 function hasDoctorErrors(checks: Array<{ status: string }>): boolean {
   return checks.some((check) => check.status === 'error')
+}
+
+function colorize(text: string, color: string): string {
+  return `${color}${text}${ansi.reset}`
 }

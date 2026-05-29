@@ -2,9 +2,9 @@
   "configurations": [
     {
       "type": "node-terminal",
-      "name": "运行脚本: dev (herox)",
+      "name": "Debug Herox",
       "request": "launch",
-      "command": "pnpm run dev config",
+      "command": "pnpm run debug",
       "cwd": "${workspaceFolder}"
     }
   ]

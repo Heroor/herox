@@ -6,6 +6,7 @@
   "packageManager": "pnpm@11.3.0",
   "scripts": {
     "dev": "NODE_OPTIONS=--conditions=development tsx ./packages/cli/src/index.ts",
+    "debug": "tsx ./packages/cli/src/index.ts",
     "build": "pnpm -r --sort run build",
     "changeset": "changeset",
     "format": "prettier --check .",

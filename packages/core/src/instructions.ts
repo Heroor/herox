@@ -27,6 +27,17 @@ export interface BuildRunMessagesOptions {
   instructions?: string
 }
 
+export interface ConversationTurn {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface BuildConversationMessagesOptions {
+  history: ConversationTurn[]
+  instructions?: string
+  nextUserMessage?: string
+}
+
 const defaultSystemPrompt = [
   'You are Herox, a local developer agent CLI.',
   'Help the user complete software engineering tasks with concise, actionable output.',
@@ -52,22 +63,41 @@ export function loadHeroxInstructions(
 }
 
 export function buildRunMessages(options: BuildRunMessagesOptions): ChatMessage[] {
+  return buildConversationMessages({
+    history: [],
+    instructions: options.instructions,
+    nextUserMessage: options.task,
+  })
+}
+
+export function buildConversationMessages(
+  options: BuildConversationMessagesOptions,
+): ChatMessage[] {
   const instructions = options.instructions?.trim()
   const systemContent =
     instructions === undefined || instructions.length === 0
       ? defaultSystemPrompt
       : `${defaultSystemPrompt}\n\nFollow these additional instructions:\n\n${instructions}`
 
-  return [
+  const messages: ChatMessage[] = [
     {
       role: 'system',
       content: systemContent,
     },
-    {
-      role: 'user',
-      content: options.task,
-    },
+    ...options.history.map((turn) => ({
+      role: turn.role,
+      content: turn.content,
+    })),
   ]
+
+  if (options.nextUserMessage !== undefined) {
+    messages.push({
+      role: 'user',
+      content: options.nextUserMessage,
+    })
+  }
+
+  return messages
 }
 
 function readInstructionSource(label: string, path: string): InstructionSource {
