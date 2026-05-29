@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -312,6 +312,68 @@ describe('runCli', () => {
 
     expect(code).toBe(1)
     expect(output.join('')).toContain('Missing API key. Set OPENAI_API_KEY')
+  })
+
+  it('initializes project Herox files', async () => {
+    const root = join(tmpdir(), `herox-cli-${randomUUID()}`)
+    mkdirSync(root, { recursive: true })
+
+    const output: string[] = []
+    const code = await runCli(
+      ['init'],
+      {
+        stdout: { write: (chunk) => append(output, chunk) },
+        stderr: { write: (chunk) => append(output, chunk) },
+      },
+      {
+        env: {},
+        cwd: root,
+        homeDir: join(root, 'home'),
+      },
+    )
+
+    expect(code).toBe(0)
+    expect(output.join('')).toContain('Initialized Herox project')
+    expect(output.join('')).toContain('CREATED HEROX.md')
+    expect(readFileSync(join(root, 'HEROX.md'), 'utf8')).toContain('Herox Project Instructions')
+    expect(readFileSync(join(root, '.gitignore'), 'utf8')).toContain('.herox/settings.local.json')
+  })
+
+  it('supports force initializing template files', async () => {
+    const root = join(tmpdir(), `herox-cli-${randomUUID()}`)
+    mkdirSync(join(root, '.herox'), { recursive: true })
+    writeFileSync(join(root, 'HEROX.md'), 'Existing instructions.')
+    writeFileSync(join(root, '.herox', 'settings.json'), '{}\n')
+
+    const output: string[] = []
+    const code = await runCli(
+      ['init', '--force'],
+      {
+        stdout: { write: (chunk) => append(output, chunk) },
+        stderr: { write: (chunk) => append(output, chunk) },
+      },
+      {
+        env: {},
+        cwd: root,
+        homeDir: join(root, 'home'),
+      },
+    )
+
+    expect(code).toBe(0)
+    expect(output.join('')).toContain('UPDATED HEROX.md')
+    expect(readFileSync(join(root, 'HEROX.md'), 'utf8')).toContain('Herox Project Instructions')
+  })
+
+  it('rejects unknown init options', async () => {
+    const output: string[] = []
+    const code = await runCli(['init', '--unknown'], {
+      stdout: { write: (chunk) => append(output, chunk) },
+      stderr: { write: (chunk) => append(output, chunk) },
+    })
+
+    expect(code).toBe(2)
+    expect(output.join('')).toContain('Unknown init option')
+    expect(output.join('')).toContain('Usage: herox init [--force]')
   })
 })
 

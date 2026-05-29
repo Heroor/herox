@@ -4,6 +4,7 @@ import { createTextBlock } from '@heroor/x-shared'
 import { listBuiltinTools } from '@heroor/x-tools'
 
 export {
+  findHeroxWorkspaceRoot,
   getConfigValue,
   loadHeroxConfig,
   mergeHeroxConfig,
@@ -22,6 +23,13 @@ export {
   type LoadedHeroxInstructions,
   type LoadHeroxInstructionsOptions,
 } from './instructions.js'
+export {
+  initHeroxProject,
+  type InitFileAction,
+  type InitFileResult,
+  type InitHeroxProjectOptions,
+  type InitHeroxProjectResult,
+} from './init.js'
 
 export interface BuildDoctorReportOptions {
   version: string

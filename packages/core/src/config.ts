@@ -61,7 +61,7 @@ const defaultConfig: HeroxConfig = {
 export function loadHeroxConfig(options: LoadHeroxConfigOptions = {}): LoadedHeroxConfig {
   const cwd = options.cwd ?? process.cwd()
   const env = options.env ?? process.env
-  const workspaceRoot = findWorkspaceRoot(cwd)
+  const workspaceRoot = findHeroxWorkspaceRoot(cwd)
   const sourcePaths = [
     { label: 'user', path: join(options.homeDir ?? homedir(), '.herox', 'settings.json') },
     { label: 'project', path: join(workspaceRoot, '.herox', 'settings.json') },
@@ -158,7 +158,7 @@ function readConfigSource(
   }
 }
 
-function findWorkspaceRoot(cwd: string): string {
+export function findHeroxWorkspaceRoot(cwd: string): string {
   let current = cwd
   const root = parse(cwd).root
 

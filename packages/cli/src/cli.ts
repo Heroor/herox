@@ -3,6 +3,7 @@ import {
   buildRunMessages,
   formatDoctorReport,
   getConfigValue,
+  initHeroxProject,
   loadHeroxInstructions,
   loadHeroxConfig,
 } from '@heroor/x-core'
@@ -35,7 +36,7 @@ const helpText = createTextBlock([
   '  provider list              List built-in provider presets',
   '  provider test [provider]   Test an OpenAI-compatible provider',
   '  run <task>                 Execute a one-shot task',
-  '  init                       Initialize project Herox files (coming soon)',
+  '  init [--force]             Initialize project Herox files',
   '  resume [session]           Resume a saved session (coming soon)',
   '',
   'Options:',
@@ -87,7 +88,11 @@ export async function runCli(
     return handleRunCommand(normalizedArgs.slice(1), io, runtime)
   }
 
-  if (command === 'init' || command === 'resume') {
+  if (command === 'init') {
+    return handleInitCommand(normalizedArgs.slice(1), io, runtime)
+  }
+
+  if (command === 'resume') {
     io.stderr.write(`herox "${command}" is not implemented yet.\n`)
     return 2
   }
@@ -127,6 +132,33 @@ function handleConfigCommand(
 
   io.stderr.write(`Unknown config command: "${subcommand}"\n`)
   return 1
+}
+
+function handleInitCommand(
+  args: string[],
+  io: CliIo,
+  runtime: Required<Pick<RunCliOptions, 'cwd' | 'env'>> & Pick<RunCliOptions, 'homeDir'>,
+): number {
+  const parsed = parseInitArgs(args)
+  if (parsed.error !== undefined) {
+    io.stderr.write(`${parsed.error}\n`)
+    io.stderr.write('Usage: herox init [--force]\n')
+    return 2
+  }
+
+  try {
+    const result = initHeroxProject({
+      cwd: runtime.cwd,
+      force: parsed.force,
+    })
+    io.stdout.write(formatInitResult(result))
+    return 0
+  } catch (error) {
+    io.stderr.write(
+      `${error instanceof Error ? error.message : 'Project initialization failed.'}\n`,
+    )
+    return 1
+  }
 }
 
 async function handleProviderCommand(
@@ -232,6 +264,17 @@ function formatProviderList(): string {
   return createTextBlock(lines)
 }
 
+function formatInitResult(result: ReturnType<typeof initHeroxProject>): string {
+  return createTextBlock([
+    `Initialized Herox project at ${result.workspaceRoot}`,
+    '',
+    ...result.files.map(
+      (file) =>
+        `${file.action.toUpperCase().padEnd(7, ' ')} ${file.relativePath} (${file.description})`,
+    ),
+  ])
+}
+
 function formatRunError(error: unknown): string {
   if (error instanceof ProviderError && error.kind !== 'unknown') {
     return `${error.message} (${error.kind})\n`
@@ -296,6 +339,24 @@ function isSecretKey(key: string): boolean {
 
 function normalizeArgs(args: string[]): string[] {
   return args[0] === '--' ? args.slice(1) : args
+}
+
+function parseInitArgs(args: string[]): { force: boolean; error?: string } {
+  let force = false
+
+  for (const arg of args) {
+    if (arg === '--force' || arg === '-f') {
+      force = true
+      continue
+    }
+
+    return {
+      force,
+      error: `Unknown init option: "${arg}"`,
+    }
+  }
+
+  return { force }
 }
 
 function readPackageVersion(): string {
