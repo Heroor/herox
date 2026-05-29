@@ -14,6 +14,14 @@ export {
   type LoadedHeroxConfig,
   type LoadHeroxConfigOptions,
 } from "./config.js"
+export {
+  buildRunMessages,
+  loadHeroxInstructions,
+  type BuildRunMessagesOptions,
+  type InstructionSource,
+  type LoadedHeroxInstructions,
+  type LoadHeroxInstructionsOptions,
+} from "./instructions.js"
 
 export interface BuildDoctorReportOptions {
   version: string

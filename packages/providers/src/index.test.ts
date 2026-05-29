@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest"
 
 import {
   createChatCompletion,
+  createChatCompletionStream,
   extractStreamContent,
+  ProviderError,
   resolveProviderConnection,
   testProviderConnection,
 } from "./index.js"
@@ -120,6 +122,114 @@ describe("createChatCompletion", () => {
       max_tokens: 16,
     })
   })
+
+  it("normalizes HTTP provider errors", async () => {
+    await expect(
+      createChatCompletion(
+        {
+          provider: "openai",
+          baseUrl: "https://api.openai.com/v1",
+          model: "missing-model",
+          compatibility: "openai-chat-completions",
+        },
+        {
+          messages: [{ role: "user", content: "Say OK" }],
+        },
+        async () =>
+          jsonResponse(
+            {
+              error: {
+                code: "model_not_found",
+                message: "The model does not exist.",
+                type: "invalid_request_error",
+              },
+            },
+            {
+              ok: false,
+              status: 404,
+              statusText: "Not Found",
+            },
+          ),
+      ),
+    ).rejects.toMatchObject({
+      code: "model_not_found",
+      kind: "model_not_found",
+      status: 404,
+    })
+  })
+
+  it.each([
+    {
+      status: 401,
+      statusText: "Unauthorized",
+      message: "Invalid API key.",
+      expectedKind: "auth_failed",
+    },
+    {
+      status: 429,
+      statusText: "Too Many Requests",
+      message: "Rate limit exceeded.",
+      expectedKind: "rate_limited",
+    },
+    {
+      status: 400,
+      statusText: "Bad Request",
+      message: "The maximum context length was exceeded.",
+      expectedKind: "context_length_exceeded",
+    },
+  ])("classifies $expectedKind provider errors", async (testCase) => {
+    await expect(
+      createChatCompletion(
+        {
+          provider: "openai",
+          baseUrl: "https://api.openai.com/v1",
+          model: "gpt-4.1",
+          compatibility: "openai-chat-completions",
+        },
+        {
+          messages: [{ role: "user", content: "Say OK" }],
+        },
+        async () =>
+          jsonResponse(
+            {
+              error: {
+                message: testCase.message,
+              },
+            },
+            {
+              ok: false,
+              status: testCase.status,
+              statusText: testCase.statusText,
+            },
+          ),
+      ),
+    ).rejects.toMatchObject({
+      kind: testCase.expectedKind,
+      status: testCase.status,
+    })
+  })
+
+  it("normalizes network failures", async () => {
+    await expect(
+      createChatCompletion(
+        {
+          provider: "openai",
+          baseUrl: "https://api.openai.com/v1",
+          model: "gpt-4.1",
+          compatibility: "openai-chat-completions",
+        },
+        {
+          messages: [{ role: "user", content: "Say OK" }],
+        },
+        async () => {
+          throw new TypeError("fetch failed")
+        },
+      ),
+    ).rejects.toMatchObject({
+      kind: "network_failed",
+      name: "ProviderError",
+    })
+  })
 })
 
 describe("stream parser", () => {
@@ -134,6 +244,83 @@ describe("stream parser", () => {
     ].join("\n")
 
     expect(extractStreamContent(stream)).toEqual(["O", "K"])
+  })
+
+  it("streams delta content from chunked server-sent events", async () => {
+    const calls: Array<{ url: string; init: RequestInitLike }> = []
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"O"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"K"}}]}\n\n',
+      "data: [DONE]\n\n",
+    ]
+
+    const deltas: string[] = []
+    for await (const delta of createChatCompletionStream(
+      {
+        provider: "test",
+        baseUrl: "https://example.test/v1",
+        model: "test-model",
+        compatibility: "openai-chat-completions",
+      },
+      {
+        messages: [{ role: "user", content: "Say OK" }],
+      },
+      async (url, init) => {
+        calls.push({ url, init })
+        return streamResponse(chunks)
+      },
+    )) {
+      deltas.push(delta)
+    }
+
+    expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
+      stream: true,
+    })
+    expect(deltas).toEqual(["O", "K"])
+  })
+
+  it("keeps partial stream events buffered across chunks", async () => {
+    const deltas: string[] = []
+    for await (const delta of createChatCompletionStream(
+      {
+        provider: "test",
+        baseUrl: "https://example.test/v1",
+        model: "test-model",
+        compatibility: "openai-chat-completions",
+      },
+      {
+        messages: [{ role: "user", content: "Say OK" }],
+      },
+      async () =>
+        streamResponse([
+          'data: {"choices":[{"delta"',
+          ':{"content":"O"}}]}\n\n',
+          "data: [DONE]\n\n",
+        ]),
+    )) {
+      deltas.push(delta)
+    }
+
+    expect(deltas).toEqual(["O"])
+  })
+
+  it("fails clearly when a streaming response has no body", async () => {
+    await expect(
+      collectAsync(
+        createChatCompletionStream(
+          {
+            provider: "test",
+            baseUrl: "https://example.test/v1",
+            model: "test-model",
+            compatibility: "openai-chat-completions",
+          },
+          {
+            messages: [{ role: "user", content: "Say OK" }],
+          },
+          async () => jsonResponse({}),
+        ),
+      ),
+    ).rejects.toBeInstanceOf(ProviderError)
   })
 })
 
@@ -188,12 +375,47 @@ interface RequestInitLike {
   body?: unknown
 }
 
-function jsonResponse(data: unknown) {
+function jsonResponse(
+  data: unknown,
+  response: Partial<{
+    ok: boolean
+    status: number
+    statusText: string
+  }> = {},
+) {
+  return {
+    ok: response.ok ?? true,
+    status: response.status ?? 200,
+    statusText: response.statusText ?? "OK",
+    json: async () => data,
+    text: async () => JSON.stringify(data),
+  }
+}
+
+function streamResponse(chunks: string[]) {
+  const encoder = new TextEncoder()
+
   return {
     ok: true,
     status: 200,
     statusText: "OK",
-    json: async () => data,
-    text: async () => JSON.stringify(data),
+    body: new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of chunks) {
+          controller.enqueue(encoder.encode(chunk))
+        }
+        controller.close()
+      },
+    }),
+    json: async () => ({}),
+    text: async () => chunks.join(""),
   }
+}
+
+async function collectAsync(iterable: AsyncIterable<unknown>): Promise<unknown[]> {
+  const values: unknown[] = []
+  for await (const value of iterable) {
+    values.push(value)
+  }
+  return values
 }

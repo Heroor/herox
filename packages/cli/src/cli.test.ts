@@ -228,9 +228,114 @@ describe("runCli", () => {
     })
     expect(output.join("")).toContain("OK openai")
   })
+
+  it("requires a task for one-shot run", async () => {
+    const output: string[] = []
+    const code = await runCli(["run"], {
+      stdout: { write: (chunk) => append(output, chunk) },
+      stderr: { write: (chunk) => append(output, chunk) },
+    })
+
+    expect(code).toBe(2)
+    expect(output.join("")).toContain("Usage: herox run <task>")
+  })
+
+  it("runs a one-shot task with HEROX instructions and streamed output", async () => {
+    const root = join(tmpdir(), `herox-cli-${randomUUID()}`)
+    const home = join(root, "home")
+    mkdirSync(join(home, ".herox"), { recursive: true })
+    writeFileSync(join(home, ".herox", "HEROX.md"), "Prefer concise output.")
+    writeFileSync(join(root, "HEROX.md"), "Add comments for complex logic.")
+
+    const calls: Array<{ headers?: Record<string, string>; body?: string }> = []
+    vi.stubGlobal(
+      "fetch",
+      async (_url: string, init: { headers?: Record<string, string>; body?: string }) => {
+        calls.push({ headers: init.headers, body: init.body })
+        return streamResponse([
+          'data: {"choices":[{"delta":{"content":"Done"}}]}\n\n',
+          "data: [DONE]\n\n",
+        ])
+      },
+    )
+
+    const output: string[] = []
+    const code = await runCli(
+      ["run", "fix", "tests"],
+      {
+        stdout: { write: (chunk) => append(output, chunk) },
+        stderr: { write: (chunk) => append(output, chunk) },
+      },
+      {
+        env: { OPENAI_API_KEY: "secret" },
+        cwd: root,
+        homeDir: home,
+      },
+    )
+
+    expect(code).toBe(0)
+    expect(output.join("")).toBe("Done\n")
+    expect(calls[0]?.headers).toMatchObject({
+      Authorization: "Bearer secret",
+    })
+    expect(JSON.parse(String(calls[0]?.body))).toMatchObject({
+      stream: true,
+    })
+    expect(JSON.parse(String(calls[0]?.body)).messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: "system",
+          content: expect.stringContaining("Add comments for complex logic."),
+        }),
+        expect.objectContaining({
+          role: "user",
+          content: "fix tests",
+        }),
+      ]),
+    )
+  })
+
+  it("does not run a one-shot task when the API key is missing", async () => {
+    const output: string[] = []
+    const code = await runCli(
+      ["run", "fix tests"],
+      {
+        stdout: { write: (chunk) => append(output, chunk) },
+        stderr: { write: (chunk) => append(output, chunk) },
+      },
+      {
+        env: {},
+        cwd: "/tmp/herox-missing",
+        homeDir: "/tmp/herox-missing-home",
+      },
+    )
+
+    expect(code).toBe(1)
+    expect(output.join("")).toContain("Missing API key. Set OPENAI_API_KEY")
+  })
 })
 
 function append(output: string[], chunk: string | Uint8Array): boolean {
   output.push(String(chunk))
   return true
+}
+
+function streamResponse(chunks: string[]) {
+  const encoder = new TextEncoder()
+
+  return {
+    ok: true,
+    status: 200,
+    statusText: "OK",
+    body: new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of chunks) {
+          controller.enqueue(encoder.encode(chunk))
+        }
+        controller.close()
+      },
+    }),
+    json: async () => ({}),
+    text: async () => chunks.join(""),
+  }
 }

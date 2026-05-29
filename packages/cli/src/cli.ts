@@ -1,11 +1,15 @@
 import {
   buildDoctorReport,
+  buildRunMessages,
   formatDoctorReport,
   getConfigValue,
+  loadHeroxInstructions,
   loadHeroxConfig,
 } from "@heroor/x-core"
 import {
+  createChatCompletionStream,
   listProviderPresets,
+  ProviderError,
   resolveProviderConnection,
   testProviderConnection,
 } from "@heroor/x-providers"
@@ -30,7 +34,7 @@ const helpText = createTextBlock([
   "  doctor                     Check local Herox runtime readiness",
   "  provider list              List built-in provider presets",
   "  provider test [provider]   Test an OpenAI-compatible provider",
-  "  run <task>                 Execute a one-shot task (coming soon)",
+  "  run <task>                 Execute a one-shot task",
   "  init                       Initialize project Herox files (coming soon)",
   "  resume [session]           Resume a saved session (coming soon)",
   "",
@@ -79,7 +83,11 @@ export async function runCli(
     return handleProviderCommand(normalizedArgs.slice(1), io, runtime)
   }
 
-  if (command === "run" || command === "init" || command === "resume") {
+  if (command === "run") {
+    return handleRunCommand(normalizedArgs.slice(1), io, runtime)
+  }
+
+  if (command === "init" || command === "resume") {
     io.stderr.write(`herox "${command}" is not implemented yet.\n`)
     return 2
   }
@@ -157,6 +165,50 @@ async function handleProviderCommand(
   return 1
 }
 
+async function handleRunCommand(
+  args: string[],
+  io: CliIo,
+  runtime: Required<Pick<RunCliOptions, "cwd" | "env">> & Pick<RunCliOptions, "homeDir">,
+): Promise<number> {
+  const task = args.join(" ").trim()
+  if (task.length === 0) {
+    io.stderr.write("Usage: herox run <task>\n")
+    return 2
+  }
+
+  const loaded = loadHeroxConfig(runtime)
+  const instructions = loadHeroxInstructions({
+    workspaceRoot: loaded.workspaceRoot,
+    homeDir: runtime.homeDir,
+  })
+
+  try {
+    const connection = resolveProviderConnection({
+      config: loaded.config,
+      env: mergeProviderEnv(loaded.config.env, runtime.env),
+    })
+
+    if (connection.apiKeyEnv !== undefined && connection.apiKey === undefined) {
+      io.stderr.write(`Missing API key. Set ${connection.apiKeyEnv} and retry.\n`)
+      return 1
+    }
+
+    for await (const delta of createChatCompletionStream(connection, {
+      messages: buildRunMessages({
+        task,
+        instructions: instructions.content,
+      }),
+    })) {
+      io.stdout.write(delta)
+    }
+    io.stdout.write("\n")
+    return 0
+  } catch (error) {
+    io.stderr.write(formatRunError(error))
+    return 1
+  }
+}
+
 function mergeProviderEnv(
   configEnv: Record<string, string>,
   runtimeEnv: NodeJS.ProcessEnv,
@@ -178,6 +230,14 @@ function formatProviderList(): string {
   ]
 
   return createTextBlock(lines)
+}
+
+function formatRunError(error: unknown): string {
+  if (error instanceof ProviderError && error.kind !== "unknown") {
+    return `${error.message} (${error.kind})\n`
+  }
+
+  return `${error instanceof Error ? error.message : "Run failed."}\n`
 }
 
 function redactConfigValue(value: unknown, path?: string): unknown {
